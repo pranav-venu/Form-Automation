@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'">
+<title>Stride</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="drag"></div>
+<div class="glow"></div>
+
+<div class="shell">
+  <header>
+    <div class="who"><button class="ava" id="ava" title="Profile">?</button><div class="hello" id="hello">Hello</div></div>
+    <div class="tools">
+      <button class="tool" id="btnCal" title="Calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></button>
+      <button class="tool" id="btnAna" title="Analytics"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
+      <button class="tool" id="btnAuto" title="Automate"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg></button>
+      <button class="tool" id="btnProf" title="Profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
+    </div>
+  </header>
+
+  <div class="crumbs" id="crumbs"></div>
+
+
+  <!-- DASHBOARD -->
+  <section class="view" id="v-dash">
+    <div class="title-row"><h1>Calendar</h1></div>
+    <div class="calendar">
+      <div class="cal-head">
+        <h2 id="calLabel"></h2>
+        <div class="cal-ctl">
+          <button class="pill" id="calToday">Today</button>
+          <button class="icon" id="calPrev">‹</button><button class="icon" id="calNext">›</button>
+        </div>
+      </div>
+      <div class="cgrid dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="cgrid" id="cells"></div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section class="view" id="v-ana" hidden>
+    <div class="title-row"><h1>Analytics</h1></div>
+    <div class="card activity">
+      <div class="act-head"><div class="lbl">Activity</div><div class="act-right"><div class="nav"><button class="icon" id="yPrev">‹</button><span id="yLabel"></span><button class="icon" id="yNext">›</button></div><div class="heat-scale"><span>Less</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>More</span></div></div></div>
+      <div class="heat-wrap"><div class="heat-days"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span></span></div>
+        <div><div class="heat-months" id="heatMonths"></div><div id="heat" class="heat"></div></div></div>
+    </div>
+
+    <div class="card chart">
+      <div class="chart-head">
+        <div>
+          <div class="lbl">Worked time</div>
+          <div class="big" id="chartTotal">0h</div>
+          <div class="mute-s" id="chartSub"></div>
+        </div>
+        <div class="chart-ctl">
+          <div class="seg"><button data-m="week" class="on">Week</button><button data-m="month">Month</button></div>
+          <div class="nav"><button class="icon" id="cPrev">‹</button><span id="cLabel"></span><button class="icon" id="cNext">›</button></div>
+        </div>
+      </div>
+      <div class="plot" id="plot"><div class="tip" id="tip" hidden></div></div>
+    </div>
+
+    <div class="bottom">
+    <div class="card status">
+      <div class="lbl">Submission status <span class="faint">· this period</span></div>
+      <div class="status-body">
+        <div id="donut" class="ring"></div>
+        <div class="mtiles" id="dlegend"></div>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi k1"><span class="bar"></span><div class="lbl">Total time</div><div class="val" id="kTotal">0h</div><div class="ksub" id="kTotalS"></div></div>
+      <div class="card kpi k2"><span class="bar"></span><div class="lbl">Daily average</div><div class="val" id="kAvg">0h</div><div class="ksub" id="kAvgS"></div></div>
+      <div class="card kpi k3"><span class="bar"></span><div class="lbl">Best day</div><div class="val" id="kBest">0h</div><div class="ksub" id="kBestS"></div></div>
+      <div class="card kpi k4"><span class="bar"></span><div class="lbl">Tasks logged</div><div class="val" id="kTasks">0</div><div class="ksub" id="kTasksS"></div></div>
+    </div>
+    </div>
+  </section>
+
+  <!-- DAY -->
+  <section class="view" id="v-day" hidden>
+    <div class="title-row"><h1 id="dayTitle"></h1><span class="badge sent" id="dayBadge" hidden></span></div>
+    <div class="day-grid">
+      <div class="card">
+        <div class="lbl" id="formLbl">New task</div>
+        <div class="inline">
+          <input class="text" id="tName" placeholder="What did you work on?" autocomplete="off">
+          <button class="go-arrow" id="tAdd" title="Add task"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="lbl sp">Time taken</div>
+        <div class="dur">
+          <div class="step" id="stH"></div><span class="colon">:</span><div class="step" id="stM"></div>
+        </div>
+        <div class="quick" id="quick"></div>
+        <button class="pill hide" id="tCancel">Cancel editing</button>
+        <div class="msg" id="tMsg"></div>
+        <div class="submit-row"><button class="btn sm" id="sendBtn">Submit</button></div>
+      </div>
+      <div class="list">
+        <div class="list-head"><div class="lbl">Tasks</div><div class="total" id="dayTotal">0h 00m</div></div>
+        <div id="tasks"></div>
+        <div class="empty" id="empty">No tasks yet — add your first one.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORM -->
+  <section class="view" id="v-form" hidden>
+    <div class="title-row"><h1>Submit to Google Form</h1></div>
+    <div class="banner" id="banner">Opening form…</div>
+    <div class="formbox" id="formbox"></div>
+  </section>
+
+  <!-- AUTOMATE -->
+  <section class="view" id="v-auto" hidden>
+    <div class="title-row"><h1>Automate</h1></div>
+    <div class="card narrow">
+      <div class="row-between">
+        <div><div class="lbl">Auto-send</div><p class="mute-s">Sends that day's tasks to the form at the time you pick, every day.</p></div>
+        <label class="switch"><input type="checkbox" id="autoOn"><span></span></label>
+      </div>
+      <div class="lbl sp">Send at</div>
+      <div class="dur"><div class="step" id="atH"></div><span class="colon">:</span><div class="step" id="atM"></div></div>
+      <p class="note" id="autoStatus"></p>
+      <p class="mute-s">The app needs to be running. Closing the window keeps it running in the background — quit with ⌘Q to stop it.</p>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="view" id="v-prof" hidden>
+    <div class="title-row"><h1>Profile</h1></div>
+    <div class="card profile">
+      <div class="photo">
+        <div class="pic-wrap"><div class="pic" id="pic">?</div><button class="pic-x" id="picDel" title="Remove photo" hidden>×</button></div>
+        <button class="pill" id="picPick">Add photo</button>
+        <input type="file" id="picFile" accept="image/*" hidden>
+      </div>
+      <label class="field">Display name <small>shown in your greeting</small><input class="text" id="pDisplay" placeholder="Enter display name"></label>
+      <label class="field">Name in the form <small>exactly as in the form's dropdown</small><input class="text" id="pForm" placeholder="Enter name as in the form"></label>
+      <div class="row-between sp2">
+        <div><div class="lbl">Submit automatically on Send</div></div>
+        <label class="switch"><input type="checkbox" id="pAuto"><span></span></label>
+      </div>
+      <div class="half-btns"><button class="btn sm" id="pSave">Save</button><button class="pill danger" id="pLogout">Log out of Google</button></div>
+      <button class="clear-link" id="pClear">Clear all data</button>
+    </div>
+  </section>
+</div>
+
+<!-- CONFIRM CLEAR -->
+<div class="modal" id="confirm" hidden>
+  <div class="crop-card">
+    <div class="warn">!</div>
+    <h3>Clear all data?</h3>
+    <p class="mute-s" style="margin-bottom:20px">This permanently deletes every task, your profile and photo, the auto-send schedule and its logs, and signs you out of Google. You'll start again from the beginning. This can't be undone.</p>
+    <div class="half-btns" style="margin-top:0"><button class="pill" id="cfNo">Cancel</button><button class="btn sm danger-btn" id="cfYes">Clear everything</button></div>
+  </div>
+</div>
+
+<!-- SENDING STATUS -->
+<div class="modal" id="sending" hidden>
+  <div class="crop-card" style="text-align:center">
+    <div id="sdSpin" class="spin" style="margin-bottom:16px"></div>
+    <div class="tick" id="sdTick" hidden>✓</div>
+    <div class="warn" id="sdErr" hidden>!</div>
+    <h3 id="sdTitle">Submitting…</h3>
+    <p class="mute-s" id="sdMsg"></p>
+    <div class="half-btns" id="sdBtns" hidden style="margin-top:16px"><button class="btn sm" id="sdOk">Done</button></div>
+  </div>
+</div>
+
+<!-- PHOTO CROPPER -->
+<div class="modal" id="crop" hidden>
+  <div class="crop-card">
+    <h3>Adjust photo</h3>
+    <div class="crop-view" id="cropView"><img id="cropImg" draggable="false" alt=""><div class="crop-mask"></div></div>
+    <div class="zoom"><span>−</span><input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1"><span>+</span></div>
+    <p class="mute-s">Drag to reposition · scroll or use the slider to zoom</p>
+    <div class="half-btns"><button class="pill" id="cropCancel">Cancel</button><button class="btn sm" id="cropApply">Apply</button></div>
+  </div>
+</div>
+
+<!-- SPLASH / GOOGLE SIGN-IN -->
+<div class="splash" id="splash" hidden>
+  <div class="drag"></div><div class="orb o1"></div><div class="orb o2"></div>
+  <div class="sp-card" id="spCard">
+    <div class="sp-intro" id="spIntro">
+      <img class="logo" src="assets/logo.png" alt="Stride">
+      <h1>Stride</h1>
+      <p>Log your day. Send it in one tap.<br>Sign in once and it remembers you.</p>
+      <button class="gbtn" id="gBtn"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.1-3.8 6.5-9.4 6.5-16.2z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.2 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.7-.7-4.3s.3-2.9.7-4.3v-5.7H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.900 4.300 29.900 2 24 2 15.500 2 8.100 6.800 4.500 14l7.300 5.700c1.700-5.200 6.500-8.900 12.200-8.900z"/></svg>Continue with Google</button>
+    </div>
+    <div class="sp-login" id="spLogin" hidden>
+      <div class="sp-head"><b>Sign in to Google</b><button class="pill" id="spBack">Back</button></div>
+      <div class="loginbox" id="loginbox"><div class="loading"><div class="spin"></div><p>Connecting to Google…</p></div></div>
+      <div class="sp-note" id="spNote">Use the account that has access to your form.</div>
+    </div>
+    <div class="sp-done" id="spDone" hidden><div class="tick">✓</div><h2>You're connected</h2></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

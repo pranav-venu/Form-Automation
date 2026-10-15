@@ -1,0 +1,51 @@
+{
+  "name": "task-automation",
+  "productName": "Stride",
+  "version": "1.0.0",
+  "description": "Daily task logger that fills your Google Form",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.pranav.stride",
+    "productName": "Stride",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": "dmg"
+    },
+    "dmg": {
+      "title": "Stride",
+      "background": "build/background.tiff",
+      "iconSize": 112,
+      "iconTextSize": 13,
+      "window": {
+        "width": 660,
+        "height": 400
+      },
+      "contents": [
+        {
+          "x": 170,
+          "y": 215,
+          "type": "file"
+        },
+        {
+          "x": 490,
+          "y": 215,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  }
+}

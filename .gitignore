@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# electron-builder output (DMGs, unpacked app)
+dist/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+
+# Misc
+.cache/
+coverage/
+*.tgz

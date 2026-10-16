@@ -12,6 +12,8 @@ let auto = load('auto', { on: false, h: 18, m: 0, lastRun: '' });
 let entries = window.api.readStore() || load('entries2', {});   // { 'YYYY-MM-DD': { tasks:[{id,text,mins}], sent, sentAt } }
 
 if (!Array.isArray(auto.days)) auto.days = [0, 1, 2, 3, 4, 5, 6];   // 0 = Sunday
+if (!auto.dayWeeks) auto.dayWeeks = {};   // per weekday: which occurrences in the month (1-5, 6 = last); missing/empty = all
+if (Array.isArray(auto.weeks)) { if (auto.weeks.length) auto.days.forEach(d => auto.dayWeeks[d] = auto.weeks.map(w => w === 5 ? 6 : w)); delete auto.weeks; save('auto', auto); }
 if (auto.time) { const [h, m] = auto.time.split(':').map(Number); auto = { ...auto, h, m }; delete auto.time; save('auto', auto); }
 
 // ---------- helpers ----------
@@ -61,6 +63,7 @@ function go(v) {
   const inCal = ['dash', 'day', 'form'].includes(v);
   $('#btnCal').classList.toggle('on', inCal); $('#btnAna').classList.toggle('on', v === 'ana');
   $('#btnAuto').classList.toggle('on', v === 'auto'); $('#btnProf').classList.toggle('on', v === 'prof');
+  try { moveBlob(); } catch {}
   const dl = fromKey(selected).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const NAMES = { dash: 'Calendar', ana: 'Analytics', auto: 'Automate', prof: 'Profile' };
   const parts = { day: [['Calendar', 'dash'], [dl]], form: [['Calendar', 'dash'], [dl, 'day'], ['Submit']] }[v] || [[NAMES[v]]];
@@ -72,7 +75,6 @@ function go(v) {
   if (v === 'ana') renderAna();
   if (v === 'prof') paintProfile();
   if (v === 'form') requestAnimationFrame(() => requestAnimationFrame(sendBounds));
-  try { moveBlob(); } catch {}
   document.querySelector('.shell').scrollTop = 0;
 }
 // liquid highlight: stretches out of the old button and settles into the new one
@@ -83,15 +85,15 @@ function moveBlob() {
   const to = on.offsetLeft, W = on.offsetWidth, rest = `translateX(${to}px)`;
   blob.style.width = W + 'px'; blob.style.opacity = 1;
   if (blobAt === null) blob.style.transform = rest;
-  else if (blobAt !== to) {   // stretch out of the old button, squash a little, then settle (transform only: no layout, no jitter)
-    const from = blobAt, lo = Math.min(from, to), k = (Math.abs(to - from) + W) / W;
+  else if (blobAt !== to) {   // glide: the pill stretches toward the new button, then its trailing edge catches up
+    const from = blobAt, lo = Math.min(from, to), span = Math.abs(to - from) + W;
     blob.getAnimations().forEach(a => a.cancel());
     blob.style.transform = rest;
     blob.animate([
-      { transform: `translateX(${from}px) scale(1,1)`, offset: 0 },
-      { transform: `translateX(${lo}px) scale(${k},.86)`, offset: .45, easing: 'cubic-bezier(.3,0,.2,1)' },
-      { transform: `translateX(${to}px) scale(1,1)`, offset: 1 }
-    ], { duration: 720, easing: 'cubic-bezier(.5,0,.15,1)' });
+      { transform: `translateX(${from}px)`, width: W + 'px', offset: 0 },
+      { transform: `translateX(${lo}px)`, width: span + 'px', offset: .42, easing: 'cubic-bezier(.45,0,.2,1)' },
+      { transform: `translateX(${to}px)`, width: W + 'px', offset: 1 }
+    ], { duration: 560, easing: 'cubic-bezier(.4,0,.2,1)' });
   }
   blobAt = to;
 }
@@ -252,8 +254,8 @@ function renderInsights() {
   $('#donut').innerHTML = `<svg width="180" height="180" viewBox="0 0 180 180"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7ce3a6"/><stop offset="1" stop-color="#7fe0ef"/></linearGradient></defs>
     <circle cx="90" cy="90" r="${R}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"/>
     <circle cx="90" cy="90" r="${R}" fill="none" stroke="url(#rg)" stroke-width="16" stroke-linecap="round" stroke-opacity="${frac ? 1 : 0}" stroke-dasharray="${C * frac} ${C}" transform="rotate(-90 90 90)"/>
-    <text x="90" y="92" text-anchor="middle" fill="#eef4f7" font-size="38" font-weight="600" letter-spacing="-1">${Math.round(frac * 100)}%</text>
-    <text x="90" y="114" text-anchor="middle" fill="#7d8c95" font-size="12">${sent} of ${withTasks.length} sent</text></svg>`;
+    <text x="90" y="91" text-anchor="middle" fill="#eef4f7" font-size="28" font-weight="600" letter-spacing="-.5">${Math.round(frac * 100)}%</text>
+    <text x="90" y="110" text-anchor="middle" fill="#7d8c95" font-size="11">${sent} of ${withTasks.length} sent</text></svg>`;
   const svg = d => `<svg viewBox="0 0 24 24">${d}</svg>`;
   const ICON = {
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
@@ -336,7 +338,7 @@ const sendBounds = () => { if (view !== 'form') return; const r = $('#formbox').
 new ResizeObserver(sendBounds).observe($('#formbox')); window.addEventListener('resize', sendBounds);
 $('#v-form').addEventListener('scroll', sendBounds);
 
-function setBanner(t, cls = '') { const b = $('#banner'); b.textContent = t; b.className = 'banner ' + cls; }
+function setBanner(t, cls = '') { const b = $('#banner'); b.hidden = false; b.textContent = t; b.className = 'banner ' + cls; }
 const payload = (k, submit) => { const d = fromKey(k); return { key: k, name: profile.formName, day: d.getDate(), month: MONTHS[d.getMonth()], monthIndex: d.getMonth(), tasks: formLines(k), submit }; };
 function markSent(k) { entries[k] = { ...entries[k], sent: true, sentAt: Date.now() }; persist(); }
 
@@ -379,13 +381,19 @@ async function sendNow() {
   go('form'); setBanner('Filling the form…');
   const r = await window.api.run(payload(k, false));
   if (!r.ok) return setBanner('✕ ' + r.error, 'err');
-  setBanner('Form filled — review it and press Submit. It will be marked as sent automatically.');
+  $('#banner').hidden = true;
 }
 $('#sendBtn').onclick = sendNow;
 window.api.onSubmitted(k => { markSent(k); if (view === 'form') setBanner('✓ Submitted — marked as sent', 'ok'); toast('Sent ✓'); });
 window.api.onNeedView(() => { go('form'); setBanner('Sign in to your Google account to continue — it will resume automatically.'); });
 
 // ---------- automate ----------
+const FULL_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEK_CHIPS = [[0, 'All'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, 'Last']];
+const ORD = { 1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: '5th', 6: 'last' };
+const weeksOf = d => auto.dayWeeks[d] || [];
+const dayMatches = date => auto.days.includes(date.getDay()) && (w => !w.length || w.includes(Math.ceil(date.getDate() / 7)) || (w.includes(6) && date.getDate() + 7 > new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()))(weeksOf(date.getDay()));
+const weekTag = d => { const w = weeksOf(d); return w.length ? w.slice().sort().map(x => x === 6 ? 'L' : x).join(',') : 'All'; };
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 let apm = auto.h >= 12 ? 'PM' : 'AM';
 const to24 = (h12, p) => (h12 % 12) + (p === 'PM' ? 12 : 0);
@@ -393,12 +401,20 @@ const fmt12 = (h, m) => `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`;
 function paintAuto() {
   $('#autoOn').checked = auto.on;
   $('#atP').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.p === apm));
-  $('#atDays').querySelectorAll('button').forEach(b => b.classList.toggle('on', auto.days.includes(Number(b.dataset.d))));
-  const when = auto.days.length === 7 ? 'every day' : `every ${auto.days.slice().sort().map(d => DAY_NAMES[d]).join(', ')}`;
+  const days = auto.days.slice().sort();
+  $('#atDays').querySelectorAll('button').forEach(b => { const d = Number(b.dataset.d), on = auto.days.includes(d); b.classList.toggle('on', on); b.querySelector('small').textContent = on ? `(${weekTag(d)})` : ''; });
+  $('#wkEmpty').hidden = !!days.length;
+  $('#atWeeks').innerHTML = days.map(d => `<div class="wk-row"><span>${FULL_DAYS[d]}</span><div class="wk-chips">${WEEK_CHIPS.map(([w, n]) => `<button data-d="${d}" data-w="${w}" class="${(w === 0 ? !weeksOf(d).length : weeksOf(d).includes(w)) ? 'on' : ''}">${n}</button>`).join('')}</div></div>`).join('');
+  $('#atWeeks').querySelectorAll('button').forEach(b => b.onclick = () => {
+    const d = Number(b.dataset.d), w = Number(b.dataset.w), cur = weeksOf(d);
+    auto.dayWeeks[d] = w === 0 ? [] : cur.includes(w) ? cur.filter(x => x !== w) : [...cur, w]; saveAuto();
+  });
+  const part = d => { const w = weeksOf(d); return w.length ? `${w.slice().sort().map(x => ORD[x]).join(' & ')} ${DAY_NAMES[d]}` : `every ${DAY_NAMES[d]}`; };
+  const when = days.length === 7 && days.every(d => !weeksOf(d).length) ? 'every day' : days.map(part).join(', ');
   const last = auto.lastRun ? `  Last run: ${auto.lastRun.replace(/(\d{2}):(\d{2})/, (_, H, M) => fmt12(+H, +M))}` : '';
   $('#autoStatus').textContent = !auto.on ? 'Auto-send is off.' : !auto.days.length ? 'No days selected — nothing will be sent.' : `Tasks will be sent ${when} at ${fmt12(auto.h, auto.m)}.` + last;
 }
-$('#atDays').innerHTML = DAY_NAMES.map((n, i) => `<button data-d="${i}">${n}</button>`).join('');
+$('#atDays').innerHTML = DAY_NAMES.map((n, i) => `<button data-d="${i}">${n}<small></small></button>`).join('');
 $('#atDays').querySelectorAll('button').forEach(b => b.onclick = () => {
   const d = Number(b.dataset.d); auto.days = auto.days.includes(d) ? auto.days.filter(x => x !== d) : [...auto.days, d]; saveAuto();
 });
@@ -410,7 +426,7 @@ $('#atH').addEventListener('change', saveAuto); $('#atM').addEventListener('chan
 let busy = false;
 async function tick() {
   if (!auto.on || busy || view === 'form') return;
-  if (!auto.days.includes(new Date().getDay())) return;   // today is a skipped day
+  if (!dayMatches(new Date())) return;   // today is a skipped day/week
   const now = new Date(), k = key(now), stamp = `${k} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   if (now.getHours() * 60 + now.getMinutes() < auto.h * 60 + auto.m) return;
   if (auto.lastRun.startsWith(k) || !tasksOf(k).length || entries[k]?.sent) return;

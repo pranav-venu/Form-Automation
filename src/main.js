@@ -85,44 +85,82 @@ ipcMain.on('auth:cancel', () => { authId++; });
 
 // ---------- Google Form automation ----------
 
-const FILL = p => `(async () => {
-  const P = ${JSON.stringify(p)};
+const PREP = `(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const fire = el => ['pointerdown','mousedown','pointerup','mouseup','click']
     .forEach(t => el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window })));
-  const items = () => [...document.querySelectorAll('div[role="listitem"]')];
-  const find = label => items().find(i => i.innerText.includes(label));
-  const visible = el => el.offsetParent !== null;
-
-  for (let i = 0; i < 60 && !items().length; i++) await sleep(500);
-  if (!items().length) return { error: 'Form did not load' };
-
+  for (let i = 0; i < 60 && !document.querySelectorAll('div[role="listitem"]').length; i++) await sleep(500);
+  if (!document.querySelectorAll('div[role="listitem"]').length) return { error: 'Form did not load' };
   const cb = document.querySelector('div[role="checkbox"]');
   if (cb && cb.getAttribute('aria-checked') !== 'true') { fire(cb); await sleep(300); }
-
-  async function pick(label, cands) {
-    const q = find(label);
-    if (!q) throw new Error('Question not found: ' + label);
-    fire(q.querySelector('[role="listbox"]'));
-    await sleep(700);
-    const opts = [...document.querySelectorAll('[role="option"]')].filter(visible);
-    for (const c of cands) {
-      const o = opts.find(o => o.innerText.trim().toLowerCase() === String(c).toLowerCase());
-      if (o) { fire(o); await sleep(500); return; }
-    }
-    throw new Error('No option for "' + label + '" matching: ' + cands.join(' / ') + '. Available: ' + opts.map(o => o.innerText.trim()).slice(0, 40).join(', '));
-  }
-
-  try {
-    const m = P.monthIndex + 1;
-    await pick('Choose your Name', [P.name]);
-    await pick('Day', [P.day, String(P.day).padStart(2, '0')]);
-    await pick('Month', [P.month, P.month.slice(0, 3), String(m), String(m).padStart(2, '0')]);
-    const t = find('Tasks Completed').querySelector('input[type="text"], textarea');
-    t.focus(); t.select();                      // select any restored draft text so typing replaces it
-    return { ok: true, multiline: t.tagName === 'TEXTAREA' };
-  } catch (e) { return { error: e.message }; }
+  return { ok: true };
 })()`;
+
+// Page-side helpers shared by the snippets below.
+const Q = label => `(() => {
+  const items = [...document.querySelectorAll('div[role="listitem"]')];
+  const head = i => i.innerText.trim().split('\\n')[0].replace(/\\s*\\*$/, '').trim();
+  return items.find(i => head(i) === ${JSON.stringify(label)}) || items.find(i => i.innerText.includes(${JSON.stringify(label)}));
+})()`;
+const RECT = expr => `(() => {
+  const e = ${expr}; if (!e) return null;
+  e.scrollIntoView({ block: 'center' });
+  const r = e.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+})()`;
+
+// Real (trusted) mouse click inside the form view; Google Forms ignores synthetic DOM events for dropdowns.
+async function realClick(wc, pt) {
+  const x = Math.round(pt.x), y = Math.round(pt.y);
+  wc.sendInputEvent({ type: 'mouseMove', x, y });
+  await sleep(80);
+  wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+  await sleep(60);
+  wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+}
+
+async function pick(wc, label, cands) {
+  const run = js => wc.executeJavaScript(js);
+  const lb = `(${Q(label)})?.querySelector('[role="listbox"]')`;
+  const names = cands.map(c => String(c).toLowerCase());
+  const optExpr = `[...document.querySelectorAll('[role="option"]')].filter(o => o.offsetParent !== null)`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const box = await run(RECT(lb));
+    if (!box) throw new Error('Question not found: ' + label);
+    await sleep(300);
+    await realClick(wc, box);
+    await sleep(800);
+    const idx = await run(`(() => { const n = ${JSON.stringify(names)}; const o = ${optExpr}; for (const c of n) { const i = o.findIndex(x => x.innerText.trim().toLowerCase() === c); if (i >= 0) return i; } return -1; })()`);
+    if (idx < 0) {
+      const avail = await run(`${optExpr}.map(o => o.innerText.trim()).slice(0, 40).join(', ')`);
+      if (attempt < 2) { await sleep(500); continue; }
+      throw new Error('No option for "' + label + '" matching: ' + cands.join(' / ') + '. Available: ' + avail);
+    }
+    const pt = await run(RECT(`${optExpr}[${idx}]`));
+    await sleep(200);
+    await realClick(wc, pt);
+    await sleep(700);
+    const ok = await run(`(() => { const t = (${lb})?.innerText.trim().toLowerCase() || ''; return t && t !== 'choose' && ${JSON.stringify(names)}.some(n => t.includes(n)); })()`);
+    if (ok) return;
+  }
+  throw new Error('Could not select a value for "' + label + '"');
+}
+
+async function fillForm(wc, p) {
+  const r = await wc.executeJavaScript(PREP);
+  if (r.error) return r;
+  try {
+    const m = p.monthIndex + 1;
+    await pick(wc, 'Choose your Name', [p.name]);
+    await pick(wc, 'Day', [p.day, String(p.day).padStart(2, '0')]);
+    await pick(wc, 'Month', [p.month, p.month.slice(0, 3), String(m), String(m).padStart(2, '0')]);
+    return await wc.executeJavaScript(`(() => {
+      const t = (${Q('Tasks Completed')}).querySelector('input[type="text"], textarea');
+      t.focus(); t.select();                      // select any restored draft text so typing replaces it
+      return { ok: true, multiline: t.tagName === 'TEXTAREA' };
+    })()`);
+  } catch (e) { return { error: e.message }; }
+}
 
 const SUBMIT = `(async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -136,6 +174,7 @@ const SUBMIT = `(async () => {
 const RECORDED = `/response has been recorded/i.test(document.body.innerText)`;
 
 ipcMain.handle('form:run', async (_e, p) => {
+  if (!p.tasks?.length) return { ok: false, error: 'No tasks to send' };
   const my = ++runId;
   const wc = formView.webContents;
   authDone = false; applyBounds();
@@ -150,7 +189,7 @@ ipcMain.handle('form:run', async (_e, p) => {
       if (p.submit) { authDone = true; applyBounds(); }
     }
 
-    const r = await wc.executeJavaScript(FILL(p));
+    const r = await fillForm(wc, p);
     if (r.error) throw new Error(r.error);
     wc.focus();
     // "task - time," per line, last one ends with a full stop (a one-line field can't hold line breaks, so it gets ", ")

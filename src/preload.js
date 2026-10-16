@@ -10,5 +10,10 @@ contextBridge.exposeInMainWorld('api', {
   readStore: () => ipcRenderer.sendSync('store:read'),
   writeStore: d => ipcRenderer.send('store:write', d),
   onStore: cb => ipcRenderer.on('store:changed', (_e, d) => cb(d)),
+  themeWrite: t => ipcRenderer.send('theme:write', t),
+  backupPick: () => ipcRenderer.invoke('backup:pick'),
+  backupWrite: (d, x) => ipcRenderer.invoke('backup:write', d, x),
+  backupPickFile: () => ipcRenderer.invoke('backup:pickFile'),
+  backupRead: d => ipcRenderer.invoke('backup:read', d),
   onNeedView: cb => ipcRenderer.on('form:need-view', () => cb())
 });

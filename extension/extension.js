@@ -5,6 +5,8 @@ const path = require('path');
 
 // Same file the Stride app reads and watches.
 const STORE = path.join(os.homedir(), '.stride', 'entries.json');
+const THEME = path.join(os.homedir(), '.stride', 'theme.json');
+const readTheme = () => { try { const t = JSON.parse(fs.readFileSync(THEME, 'utf8')); return /^#[0-9a-f]{6}$/i.test(t.hex) ? { hex: t.hex, on: /^#[0-9a-f]{6}$/i.test(t.on) ? t.on : '#06242b' } : null; } catch { return null; } };
 const pad = n => String(n).padStart(2, '0');
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const fmt = m => `${Math.floor(m / 60)}h ${pad(m % 60)}m`;
@@ -90,6 +92,7 @@ function activate(ctx) {
     bar.tooltip = n ? `${n} task${n > 1 ? 's' : ''} today — click to add another` : 'Add a task for today';
     view?.webview.postMessage({ type: 'state', entry: e });
   };
+  const sendTheme = () => { const t = readTheme(); if (t) view?.webview.postMessage({ type: 'theme', ...t }); };
 
   ctx.subscriptions.push(
     bar,
@@ -99,7 +102,7 @@ function activate(ctx) {
         v.webview.options = { enableScripts: true };
         v.webview.html = html();
         v.webview.onDidReceiveMessage(m => {
-          if (m.type === 'ready') refresh();
+          if (m.type === 'ready') { refresh(); sendTheme(); }
           if (m.type === 'add') { addTask(m.text, m.mins); refresh(); }
           if (m.type === 'remove') { removeTask(m.id); refresh(); }
         });
@@ -129,6 +132,8 @@ function activate(ctx) {
   refreshAll = refresh;
   fs.watchFile(STORE, { interval: 700 }, refresh);
   ctx.subscriptions.push({ dispose: () => fs.unwatchFile(STORE, refresh) });
+  fs.watchFile(THEME, { interval: 700 }, sendTheme);
+  ctx.subscriptions.push({ dispose: () => fs.unwatchFile(THEME, sendTheme) });
   refresh();
 }
 
@@ -138,7 +143,7 @@ function html() {
 <style>
 .task.in{animation:slideIn .38s cubic-bezier(.2,.8,.2,1) both}
 @keyframes slideIn{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
-:root{--teal:#7fe0ef;--green:#7ce3a6}
+:root{--teal:#7fe0ef;--on:#06242b;--green:#7ce3a6}
 *{box-sizing:border-box}
 body{margin:0;padding:14px 14px 20px;font-family:var(--vscode-font-family);font-size:13px;color:var(--vscode-foreground)}
 .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
@@ -148,11 +153,11 @@ input[type=text]:focus{border-color:var(--teal)}
 .lbl{margin:14px 0 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.6}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{width:52px;padding:5px 0;text-align:center;border-radius:999px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:12px}
-.chip:hover{border-color:var(--teal)}.chip.on{background:var(--teal);border-color:var(--teal);color:#06242b;font-weight:600}
+.chip:hover{border-color:var(--teal)}.chip.on{background:var(--teal);border-color:var(--teal);color:var(--on);font-weight:600}
 .dur{display:flex;align-items:center;gap:8px;margin-top:10px}
 .dur input{width:54px;text-align:center}.dur span{opacity:.6;font-size:12px}
 .field{position:relative}.field input{padding-right:42px}
-button.add{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:0;border-radius:50%;background:var(--teal);color:#06242b;display:grid;place-items:center;cursor:pointer;transition:filter .15s,transform .15s}
+button.add{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;padding:0;border:0;border-radius:50%;background:var(--teal);color:var(--on);display:grid;place-items:center;cursor:pointer;transition:filter .15s,transform .15s}
 button.add svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
 button.add:hover{filter:brightness(1.1);transform:translateY(-50%) scale(1.08)}button.add:active{transform:translateY(-50%) scale(.94)}
 .err{color:#ff7b7b;font-size:12px;min-height:16px;margin-top:6px}
@@ -197,6 +202,7 @@ function add() {
 $('add').onclick = add; $('name').onkeydown = e => { if (e.key === 'Enter') add(); };
 const fm = m => Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm';
 window.addEventListener('message', ({ data }) => {
+  if (data.type === 'theme') { document.documentElement.style.setProperty('--teal', data.hex); document.documentElement.style.setProperty('--on', data.on); return; }
   if (data.type !== 'state') return;
   const tasks = data.entry.tasks || [];
   $('total').textContent = tasks.length ? fm(tasks.reduce((s, t) => s + t.mins, 0)) : '';

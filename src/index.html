@@ -16,7 +16,6 @@
     <div class="tools"><span class="blob" id="blob"></span>
       <button class="tool" id="btnCal" title="Calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></button>
       <button class="tool" id="btnAna" title="Analytics"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
-      <button class="tool" id="btnAuto" title="Automate"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg></button>
       <button class="tool" id="btnProf" title="Profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
     </div>
   </header>
@@ -39,22 +38,6 @@
 
   <!-- ANALYTICS -->
   <section class="view" id="v-ana" hidden>
-    <div class="bottom">
-    <div class="card status">
-      <div class="lbl">Submission status <span class="faint">· this period</span></div>
-      <div class="status-body">
-        <div id="donut" class="ring"></div>
-        <div class="mtiles" id="dlegend"></div>
-      </div>
-    </div>
-    <div class="kpis">
-      <div class="card kpi k1"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg></div><div class="lbl">Total time</div><div class="val" id="kTotal">0h</div><div class="ksub" id="kTotalS"></div></div>
-      <div class="card kpi k2"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></div><div class="lbl">Daily average</div><div class="val" id="kAvg">0h</div><div class="ksub" id="kAvgS"></div></div>
-      <div class="card kpi k3"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4.5A3 3 0 0 0 8 10M16 6h3.5A3 3 0 0 1 16 10M12 13v4M8.5 21h7M10 17h4"/></svg></div><div class="lbl">Best day</div><div class="val" id="kBest">0h</div><div class="ksub" id="kBestS"></div></div>
-      <div class="card kpi k4"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></div><div class="lbl">Tasks logged</div><div class="val" id="kTasks">0</div><div class="ksub" id="kTasksS"></div></div>
-    </div>
-    </div>
-
     <div class="card chart">
       <div class="chart-head">
         <div>
@@ -75,6 +58,22 @@
       <div class="heat-wrap"><div class="heat-days"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span></span></div>
         <div><div class="heat-months" id="heatMonths"></div><div id="heat" class="heat"></div></div></div>
     </div>
+
+    <div class="bottom">
+    <div class="card status">
+      <div class="lbl">Submission status <span class="faint">· this period</span></div>
+      <div class="status-body">
+        <div id="donut" class="ring"></div>
+        <div class="mtiles" id="dlegend"></div>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi k1"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg></div><div class="lbl">Total time</div><div class="val" id="kTotal">0h</div><div class="ksub" id="kTotalS"></div></div>
+      <div class="card kpi k2"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></div><div class="lbl">Daily average</div><div class="val" id="kAvg">0h</div><div class="ksub" id="kAvgS"></div></div>
+      <div class="card kpi k3"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4.5A3 3 0 0 0 8 10M16 6h3.5A3 3 0 0 1 16 10M12 13v4M8.5 21h7M10 17h4"/></svg></div><div class="lbl">Best day</div><div class="val" id="kBest">0h</div><div class="ksub" id="kBestS"></div></div>
+      <div class="card kpi k4"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></div><div class="lbl">Tasks logged</div><div class="val" id="kTasks">0</div><div class="ksub" id="kTasksS"></div></div>
+    </div>
+    </div>
   </section>
 
   <!-- DAY -->
@@ -83,9 +82,9 @@
     <div class="day-grid">
       <div class="card" id="addCard">
         <div class="lbl" id="formLbl">New task</div>
-        <div class="inline">
-          <input class="text" id="tName" placeholder="What did you work on?" autocomplete="off">
-          <button class="go-arrow" id="tAdd" title="Add task"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <div class="inwrap taskwrap">
+          <textarea class="text" id="tName" rows="5" placeholder="What did you work on?" autocomplete="off" spellcheck="false"></textarea>
+          <button class="go-plus" id="tAdd" title="Add task"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
         <div class="lbl sp">Time taken</div>
         <div class="dur">
@@ -110,45 +109,84 @@
     <div class="formbox" id="formbox"></div>
   </section>
 
-  <!-- AUTOMATE -->
-  <section class="view" id="v-auto" hidden>
-   <div class="auto-grid">
-    <div class="card narrow">
-      <div class="row-between">
-        <div><div class="lbl">Auto-send</div><p class="mute-s">Sends that day's tasks to the form at the time you pick, every day.</p></div>
-        <label class="switch"><input type="checkbox" id="autoOn"><span></span></label>
-      </div>
-      <div class="lbl sp">Send at</div>
-      <div class="dur"><div class="step" id="atH"></div><span class="colon">:</span><div class="step" id="atM"></div><div class="ampm" id="atP"><button data-p="AM">AM</button><button data-p="PM">PM</button></div></div>
-      <div class="lbl sp">Days</div>
-      <div class="days" id="atDays"></div>
-      <p class="note" id="autoStatus"></p>
-      <p class="mute-s">The app needs to be running. Closing the window keeps it running in the background — quit with ⌘Q to stop it.</p>
-    </div>
-    <div class="wk-side">
-      <div class="lbl">Weeks</div>
-      <div class="wk-list" id="atWeeks"></div>
-      <p class="mute-s wk-empty" id="wkEmpty" hidden>Select a day to configure the weeks.</p>
-    </div>
-   </div>
-  </section>
 
-  <!-- PROFILE -->
+  <!-- SETTINGS (profile / automation / account) -->
   <section class="view" id="v-prof" hidden>
-    <div class="card profile">
-      <div class="photo">
-        <div class="pic-wrap"><div class="pic" id="pic">?</div><button class="pic-x" id="picDel" title="Remove photo" hidden>×</button></div>
-        <button class="pill" id="picPick">Add photo</button>
-        <input type="file" id="picFile" accept="image/*" hidden>
+    <div class="set">
+      <nav class="set-nav">
+        <button class="on" data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</button>
+        <button data-tab="account"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.500-1-8-4-8-9V6z"/></svg>Account &amp; data</button>
+        <button data-tab="automation"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg>Automation</button>
+        <button data-tab="backup"><svg viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>Backup &amp; restore</button>
+        <button data-tab="theme"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.100 0 1.800-.8 1.800-1.700 0-.5-.2-.9-.5-1.200-.3-.3-.5-.7-.5-1.200 0-1 .8-1.700 1.800-1.700H17a4 4 0 0 0 4-4C21 6.300 17 3 12 3z"/><circle cx="7.500" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/></svg>Theme</button>
+      </nav>
+      <div class="set-body">
+        <div class="pane" data-pane="profile">
+          <h2>Profile</h2>
+          <div class="set-row"><div class="lbl">Photo</div><div class="photo">
+        <div class="pic-wrap"><div class="pic" id="pic" role="button" tabindex="0" title="Change photo">+ Add</div><button class="pic-x" id="picDel" title="Remove photo" hidden>×</button></div>
+                <input type="file" id="picFile" accept="image/*" hidden>
       </div>
-      <label class="field">Display name <small>shown in your greeting</small><input class="text" id="pDisplay" placeholder="Enter display name"></label>
-      <label class="field">Name in the form <small>exactly as in the form's dropdown</small><input class="text" id="pForm" placeholder="Enter name as in the form"></label>
-      <div class="row-between sp2">
-        <div><div class="lbl">Submit automatically on Send</div></div>
+      </div>
+          <div class="set-row"><label class="field">Display name <small>shown in your greeting</small><input class="text" id="pDisplay" placeholder="Enter display name"></label>
+      <label class="field">Name in the form <small>exactly as in the form's dropdown</small><input class="text" id="pForm" placeholder="Enter name as in the form"></label></div>
+        </div>
+        <div class="pane" data-pane="theme" hidden>
+          <h2>Theme</h2>
+          <div class="set-row"><div class="lbl">Accent colour</div><div class="theme-grid" id="themeGrid"></div>
+            <div class="cp" id="cp" hidden>
+              <div class="cp-sv" id="cpSv"><i id="cpSvH"></i></div>
+              <div class="cp-hue" id="cpHue"><i id="cpHueH"></i></div>
+              <div class="cp-row"><span class="cp-prev" id="cpPrev"></span><input class="cp-hex" id="cpHex" maxlength="7" spellcheck="false" autocomplete="off"></div>
+            </div></div>
+        </div>
+        <div class="pane" data-pane="automation" hidden>
+          <h2>Automation</h2>
+          <div class="set-row auto-row"><div class="row-between">
+            <div><div class="lbl">Auto-send</div><p class="mute-s">Sends that day's tasks to the form at the time you pick.</p></div>
+            <label class="switch"><input type="checkbox" id="autoOn"><span></span></label>
+          </div></div>
+          <div class="set-row"><div class="lbl">Send at</div>
+            <div class="dur"><div class="step" id="atH"></div><span class="colon">:</span><div class="step" id="atM"></div><div class="ampm" id="atP"><button data-p="AM">AM</button><button data-p="PM">PM</button></div></div>
+          </div>
+          <div class="set-row"><div class="lbl">Days</div><div class="days" id="atDays"></div></div>
+          <div class="set-row"><div class="lbl">Weeks</div>
+            <div class="wk-list" id="atWeeks"></div>
+            <p class="mute-s wk-empty" id="wkEmpty" hidden>Select a day to configure the weeks.</p>
+          </div>
+        </div>
+        <div class="pane" data-pane="backup" hidden>
+          <h2>Backup &amp; restore</h2>
+          <div class="set-row bk-group">
+            <div class="lbl">Backup</div>
+            <div class="row-between bk-toggle">
+              <div><div class="bk-t1">Automatic backup</div><p class="mute-s">Keeps a copy of your tasks, profile and schedule in a folder.</p></div>
+              <label class="switch"><input type="checkbox" id="bkOn"><span></span></label>
+            </div>
+            <div class="bk-opt">
+              <div class="out-row"><button class="logout" id="bkPick"><span class="g dg"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="lt"><b id="bkName">Choose a folder</b><small id="bkPath"></small></span><span class="lo"><svg class="ex" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div>
+              <div class="bk-wrap"><div class="bk-times" id="bkTimes"></div>
+            <div class="bk-pop" id="bkPicker" hidden>
+              <div class="dur"><div class="step" id="bpH"></div><span class="colon">:</span><div class="step" id="bpM"></div><div class="ampm" id="bpP"><button data-p="AM">AM</button><button data-p="PM">PM</button></div></div>
+              <button class="btn sm" id="bpYes">Add</button>
+            </div></div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="lbl">Restore</div>
+            <div class="out-row"><button class="logout" id="bkRestore"><span class="g dg"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.700M3 4v5h5M12 8v4l3 2"/></svg></span><span class="lt"><b>Restore from</b><small>Select a JSON file</small></span><span class="lo"><svg class="ex" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button></div>
+          </div>
+        </div>
+        <div class="pane" data-pane="account" hidden>
+          <h2>Account &amp; data</h2>
+          <div class="set-row auto-row"><div class="row-between">
+        <div><div class="lbl">Submit automatically on Send</div><p class="mute-s">Submits the form for you as soon as you press Send.</p></div>
         <label class="switch"><input type="checkbox" id="pAuto"><span></span></label>
       </div>
-      <div class="out-row"><button class="logout" id="pLogout"><span class="g"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.1-3.8 6.5-9.4 6.5-16.2z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.2 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.7-.7-4.3s.3-2.9.7-4.3v-5.7H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.900 4.300 29.900 2 24 2 15.500 2 8.100 6.800 4.500 14l7.300 5.700c1.700-5.200 6.500-8.900 12.200-8.900z"/></svg></span><span class="lt"><b>Google account</b><small>Connected · tap to log out</small></span><span class="lo">Log out<svg class="ex" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></svg></span></button></div>
-      <button class="clear-link" id="pClear">Clear all data</button>
+      </div>
+          <div class="set-row"><div class="lbl">Account</div><div class="out-row"><button class="logout" id="pLogout"><span class="g"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.1-3.8 6.5-9.4 6.5-16.2z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.2 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.7-.7-4.3s.3-2.9.7-4.3v-5.7H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.900 4.300 29.900 2 24 2 15.500 2 8.100 6.800 4.500 14l7.300 5.700c1.700-5.200 6.500-8.900 12.200-8.900z"/></svg></span><span class="lt"><b id="acEmail">Google account</b><small id="acTime"></small></span><span class="lo"><svg class="ex" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></svg></span></button></div><div class="out-row" style="margin-top:12px"><button class="logout" id="pClear"><span class="g dg"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.700 3.100 3 7 3s7-1.300 7-3V6M5 12v6c0 1.700 3.100 3 7 3s7-1.300 7-3v-6"/></svg></span><span class="lt"><b>Clear all data</b><small>Deletes tasks, profile, schedule and signs you out. Backups are kept.</small></span><span class="lo"><svg class="ex" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></span></button></div></div>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -214,7 +252,7 @@
     <div class="sp-done" id="spDone" hidden><div class="tick">✓</div><h2>You're connected</h2></div>
   </div>
 </div>
-<button class="fab" id="sendBtn" title="Submit to form" hidden><svg class="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg><svg class="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span class="fl"><span class="txt"></span><span class="dots"><b></b><b></b><b></b></span></span></button>
+<button class="fab" id="sendBtn" title="Submit to form" hidden><svg class="i-send" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg><svg class="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span class="fl"><span class="txt"></span><span class="dots"><b></b><b></b><b></b></span></span></button>
 <div class="toast" id="toast"></div>
 <script src="app.js"></script>
 </body>

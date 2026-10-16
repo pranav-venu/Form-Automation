@@ -6,7 +6,39 @@ const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 let cfg = load('cfg', { autoSubmit: false });
 let profile = load('profile', {});
+let account = load('account', {});
+function paintAccount() {
+  $('#acEmail').textContent = account.email || 'Google account';
+  const d = account.at ? new Date(account.at) : null;
+  $('#acTime').textContent = d ? 'Logged in at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ' · ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+}
 profile = { displayName: profile.displayName ?? profile.name ?? '', formName: profile.formName ?? profile.name ?? '', image: profile.image || '' };
+// ---------- theme (accent colour) ----------
+const THEMES = [
+  { id: 'sky', name: 'Sky', hex: '#7fe0ef', rgb: '127,224,239', dark: '#2a8da3' },
+  { id: 'violet', name: 'Violet', hex: '#b8a1ff', rgb: '184,161,255', dark: '#6a4fd1' },
+  { id: 'mint', name: 'Mint', hex: '#7ce3a6', rgb: '124,227,166', dark: '#2e9e62' },
+  { id: 'rose', name: 'Rose', hex: '#ff94b5', rgb: '255,148,181', dark: '#c4416f' },
+  { id: 'amber', name: 'Amber', hex: '#f2c14e', rgb: '242,193,78', dark: '#b88a1c' },
+  { id: 'coral', name: 'Coral', hex: '#ff9f6e', rgb: '255,159,110', dark: '#d1692f' }
+];
+let themeId = load('theme', 'sky'), customHex = load('themeCustom', '#7fe0ef');
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function customTheme(hex) {
+  const [r, g, b] = hexRgb(hex), lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255, k = 0.62;
+  const dark = '#' + [r, g, b].map(v => Math.round(v * k).toString(16).padStart(2, '0')).join('');
+  return { id: 'custom', name: 'Custom', hex, rgb: `${r},${g},${b}`, dark, on: lum > 0.6 ? '#06242b' : '#ffffff' };
+}
+let ACC = THEMES[0];
+function applyTheme(id, persistIt) {
+  ACC = id === 'custom' ? customTheme(customHex) : THEMES.find(t => t.id === id) || THEMES[0]; themeId = ACC.id;
+  const r = document.documentElement.style;
+  r.setProperty('--acc', ACC.rgb); r.setProperty('--teal', ACC.hex); r.setProperty('--teal-d', ACC.dark); r.setProperty('--on', ACC.on || '#06242b');
+  if (persistIt) { save('theme', themeId); save('themeCustom', customHex); }
+  try { window.api.themeWrite({ hex: ACC.hex, on: ACC.on || '#06242b' }); } catch {}
+}
+applyTheme(themeId);
+
 let signedIn = load('signedIn', false);
 let auto = load('auto', { on: false, h: 18, m: 0, lastRun: '' });
 let entries = window.api.readStore() || load('entries2', {});   // { 'YYYY-MM-DD': { tasks:[{id,text,mins}], sent, sentAt } }
@@ -54,7 +86,7 @@ const aM = stepper($('#atM'), { label: 'minute', max: 59, step: 5, wrap: true, v
 
 // ---------- navigation / breadcrumbs ----------
 let view = 'dash', selected = key(new Date());
-const VIEW_IDS = { dash: 'v-dash', ana: 'v-ana', day: 'v-day', form: 'v-form', auto: 'v-auto', prof: 'v-prof' };
+const VIEW_IDS = { dash: 'v-dash', ana: 'v-ana', day: 'v-day', form: 'v-form', prof: 'v-prof' };
 
 function go(v) {
   if (view === 'form' && v !== 'form') window.api.hide();
@@ -62,10 +94,10 @@ function go(v) {
   Object.entries(VIEW_IDS).forEach(([n, id]) => $('#' + id).hidden = n !== v);
   const inCal = ['dash', 'day', 'form'].includes(v);
   $('#btnCal').classList.toggle('on', inCal); $('#btnAna').classList.toggle('on', v === 'ana');
-  $('#btnAuto').classList.toggle('on', v === 'auto'); $('#btnProf').classList.toggle('on', v === 'prof');
+  $('#btnProf').classList.toggle('on', v === 'prof');
   try { moveBlob(); } catch {}
   const dl = fromKey(selected).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  const NAMES = { dash: 'Calendar', ana: 'Analytics', auto: 'Automate', prof: 'Profile' };
+  const NAMES = { dash: 'Calendar', ana: 'Analytics', prof: 'Settings' };
   const parts = { day: [['Calendar', 'dash'], [dl]], form: [['Calendar', 'dash'], [dl, 'day'], ['Submit']] }[v] || [[NAMES[v]]];
   $('#crumbs').innerHTML = parts.map((p, i) => i === parts.length - 1 ? `<b>${p[0]}</b>` : `<a data-go="${p[1]}">${p[0]}</a>`).join('<span>›</span>');
   $('#crumbs').querySelectorAll('a').forEach(a => a.onclick = () => go(a.dataset.go));
@@ -73,7 +105,7 @@ function go(v) {
   if (v === 'dash') renderDash();
   if (v === 'day') renderDay();
   if (v === 'ana') renderAna();
-  if (v === 'prof') paintProfile();
+  if (v === 'prof') { paintProfile(); setTab('profile'); }
   if (v === 'form') requestAnimationFrame(() => requestAnimationFrame(sendBounds));
   document.querySelector('.shell').scrollTop = 0;
 }
@@ -99,7 +131,7 @@ function moveBlob() {
 }
 window.addEventListener('resize', () => { blobAt = null; moveBlob(); });
 $('#btnCal').onclick = () => go('dash'); $('#btnAna').onclick = () => go('ana');
-$('#btnAuto').onclick = () => go('auto'); $('#btnProf').onclick = () => go('prof'); $('#ava').onclick = () => go('prof');
+$('#btnProf').onclick = () => go('prof'); $('#ava').onclick = () => go('prof');
 function openDay(k) { selected = k; renderedDay = null; resetForm(); go('day'); setTimeout(() => $('#tName').focus(), 50); }
 document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#confirm').hidden) $('#confirm').hidden = true; else if (!$('#logoutConfirm').hidden) $('#logoutConfirm').hidden = true; else if (!$('#crop').hidden) $('#crop').hidden = true; });
 
@@ -159,15 +191,15 @@ function renderChart() {
   const every = pts.length > 14 ? 3 : 1;
   const svg = `<svg viewBox="0 0 ${W} ${H}" id="svg">
     <defs>
-      <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe0ef" stop-opacity=".35"/><stop offset="1" stop-color="#7fe0ef" stop-opacity="0"/></linearGradient>
-      <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe0ef" stop-opacity=".55"/><stop offset="1" stop-color="#7fe0ef" stop-opacity=".05"/></linearGradient>
+      <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ACC.hex}" stop-opacity=".35"/><stop offset="1" stop-color="${ACC.hex}" stop-opacity="0"/></linearGradient>
+      <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ACC.hex}" stop-opacity=".55"/><stop offset="1" stop-color="${ACC.hex}" stop-opacity=".05"/></linearGradient>
     </defs>
     ${[0, .5, 1].map(f => `<line x1="${L}" x2="${W - R}" y1="${T + ih * f}" y2="${T + ih * f}" stroke="rgba(255,255,255,.06)"/><text x="${L - 8}" y="${T + ih * f + 4}" text-anchor="end" fill="#7d8c95" font-size="11">${Math.round(maxH * (1 - f))}h</text>`).join('')}
     ${pts.map((p, i) => `<rect x="${X(i) - bw / 2}" y="${Y(p.mins)}" width="${bw}" height="${Math.max(0, T + ih - Y(p.mins))}" rx="${bw / 2}" fill="url(#gB)"/>`).join('')}
     <path d="${smoothPath(line, T, T + ih)} L${X(pts.length - 1)},${T + ih} L${X(0)},${T + ih} Z" fill="url(#gA)"/>
-    <path d="${smoothPath(line, T, T + ih)}" fill="none" stroke="#7fe0ef" stroke-width="2.2" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(127,224,239,.6))"/>
+    <path d="${smoothPath(line, T, T + ih)}" fill="none" stroke="${ACC.hex}" stroke-width="2.2" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(127,224,239,.6))"/>
     ${pts.map((p, i) => i % every ? '' : `<text x="${X(i)}" y="${H - 6}" text-anchor="middle" fill="#7d8c95" font-size="11">${p.label}</text>`).join('')}
-    <g id="hov" hidden><line id="hl" y1="${T}" y2="${T + ih}" stroke="#7fe0ef" stroke-width="1.5"/><circle id="hd" r="5" fill="#06242b" stroke="#7fe0ef" stroke-width="2"/></g>
+    <g id="hov" hidden><line id="hl" y1="${T}" y2="${T + ih}" stroke="${ACC.hex}" stroke-width="1.5"/><circle id="hd" r="5" fill="#06242b" stroke="${ACC.hex}" stroke-width="2"/></g>
   </svg><div class="tip" id="tip" hidden></div>`;
   plot.innerHTML = svg;
   const tip = $('#tip'), hov = plot.querySelector('#hov');
@@ -243,7 +275,7 @@ function renderInsights() {
     const d = new Date(start); d.setDate(start.getDate() + i); const k = key(d);
     if (d.getFullYear() !== yr) { cells += '<i style="visibility:hidden"></i>'; continue; }
     const m = minsOf(k), a = (.2 + .8 * Math.min(m / 360, 1)).toFixed(2);   // more hours = stronger colour
-    cells += `<i ${m ? `style="background:rgba(127,224,239,${a})"` : ''} title="${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${fmt(m)}"></i>`;
+    cells += `<i ${m ? `style="background:rgba(${ACC.rgb},${a})"` : ''} title="${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} · ${fmt(m)}"></i>`;
   }
   $('#heat').innerHTML = cells;
   $('#yLabel').textContent = yr; $('#yNext').disabled = yr >= new Date().getFullYear();
@@ -251,7 +283,7 @@ function renderInsights() {
   // submission status
   const withTasks = keys.filter(k => tasksOf(k).length), sent = withTasks.filter(k => entries[k].sent).length, pend = withTasks.length - sent;
   const R = 66, C = 2 * Math.PI * R, frac = withTasks.length ? sent / withTasks.length : 0;
-  $('#donut').innerHTML = `<svg width="180" height="180" viewBox="0 0 180 180"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7ce3a6"/><stop offset="1" stop-color="#7fe0ef"/></linearGradient></defs>
+  $('#donut').innerHTML = `<svg width="180" height="180" viewBox="0 0 180 180"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7ce3a6"/><stop offset="1" stop-color="${ACC.hex}"/></linearGradient></defs>
     <circle cx="90" cy="90" r="${R}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="16"/>
     <circle cx="90" cy="90" r="${R}" fill="none" stroke="url(#rg)" stroke-width="16" stroke-linecap="round" stroke-opacity="${frac ? 1 : 0}" stroke-dasharray="${C * frac} ${C}" transform="rotate(-90 90 90)"/>
     <text x="90" y="91" text-anchor="middle" fill="#eef4f7" font-size="28" font-weight="600" letter-spacing="-.5">${Math.round(frac * 100)}%</text>
@@ -331,7 +363,9 @@ function addTask() {
   resetForm(); renderDay(); $('#tName').focus();
 }
 $('#tAdd').onclick = addTask; $('#tCancel').onclick = resetForm;
-$('#tName').onkeydown = e => { if (e.key === 'Enter') addTask(); };
+$('#tName').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!$('#tName').value.trim()) { addTask(); return; } $('#stH .sv').focus(); } };
+$('#stH .sv').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#stM .sv').focus(); } });
+$('#stM .sv').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTask(); } });
 
 // ---------- sending (form shown inside the app) ----------
 const sendBounds = () => { if (view !== 'form') return; const r = $('#formbox').getBoundingClientRect(); window.api.bounds({ x: r.x, y: r.y, width: r.width, height: r.height }); };
@@ -400,6 +434,7 @@ const to24 = (h12, p) => (h12 % 12) + (p === 'PM' ? 12 : 0);
 const fmt12 = (h, m) => `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`;
 function paintAuto() {
   $('#autoOn').checked = auto.on;
+  document.querySelectorAll('.pane[data-pane="automation"] .set-row:not(.auto-row)').forEach(r => r.hidden = !auto.on);
   $('#atP').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.p === apm));
   const days = auto.days.slice().sort();
   $('#atDays').querySelectorAll('button').forEach(b => { const d = Number(b.dataset.d), on = auto.days.includes(d); b.classList.toggle('on', on); b.querySelector('small').textContent = on ? `(${weekTag(d)})` : ''; });
@@ -412,7 +447,7 @@ function paintAuto() {
   const part = d => { const w = weeksOf(d); return w.length ? `${w.slice().sort().map(x => ORD[x]).join(' & ')} ${DAY_NAMES[d]}` : `every ${DAY_NAMES[d]}`; };
   const when = days.length === 7 && days.every(d => !weeksOf(d).length) ? 'every day' : days.map(part).join(', ');
   const last = auto.lastRun ? `  Last run: ${auto.lastRun.replace(/(\d{2}):(\d{2})/, (_, H, M) => fmt12(+H, +M))}` : '';
-  $('#autoStatus').textContent = !auto.on ? 'Auto-send is off.' : !auto.days.length ? 'No days selected — nothing will be sent.' : `Tasks will be sent ${when} at ${fmt12(auto.h, auto.m)}.` + last;
+  if ($('#autoStatus')) $('#autoStatus').textContent = !auto.on ? 'Auto-send is off.' : !auto.days.length ? 'No days selected — nothing will be sent.' : `Tasks will be sent ${when} at ${fmt12(auto.h, auto.m)}.` + last;
 }
 $('#atDays').innerHTML = DAY_NAMES.map((n, i) => `<button data-d="${i}">${n}<small></small></button>`).join('');
 $('#atDays').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -444,8 +479,13 @@ setInterval(tick, 20000); setTimeout(tick, 3000);
 let draftImage = profile.image;
 function paintPic() {
   paintAvatar($('#pic'), $('#pDisplay').value || $('#pForm').value || profile.displayName, draftImage);
-  $('#picDel').hidden = !draftImage; $('#picPick').textContent = draftImage ? 'Change photo' : 'Add photo';
+  $('#picDel').hidden = !draftImage; $('#pic').classList.toggle('empty', !draftImage); if (!draftImage) $('#pic').textContent = 'Add';
 }
+function setTab(t) {
+  document.querySelectorAll('.set-nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('.pane').forEach(p => p.hidden = p.dataset.pane !== t);
+}
+document.querySelectorAll('.set-nav button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
 function paintProfile() {
   draftImage = profile.image;
   $('#pDisplay').value = profile.displayName; $('#pForm').value = profile.formName; $('#pAuto').checked = !!cfg.autoSubmit;
@@ -484,7 +524,7 @@ $('#cropApply').onclick = () => {
   c.getContext('2d').drawImage(cImg, -cr.x / sc, -cr.y / sc, V / sc, V / sc, 0, 0, 256, 256);
   draftImage = c.toDataURL('image/jpeg', .9); $('#crop').hidden = true; paintPic(); saveProfile();
 };
-$('#picPick').onclick = () => $('#picFile').click();
+$('#pic').onclick = () => $('#picFile').click();
 $('#picFile').onchange = e => { const f = e.target.files[0]; if (f) openCrop(f); e.target.value = ''; };
 $('#picDel').onclick = () => { draftImage = ''; paintPic(); saveProfile(); };
 $('#pDisplay').addEventListener('input', () => { if (!draftImage) paintPic(); });
@@ -502,7 +542,7 @@ $('#loYes').onclick = async () => {
   $('#loYes').disabled = true; $('#loYes').textContent = 'Logging out…';
   await window.api.signOut(); signedIn = false; save('signedIn', false);
   $('#logoutConfirm').hidden = true; $('#loYes').disabled = false; $('#loYes').textContent = 'Log out';
-  toast('Logged out of Google'); showSplash();
+  account = {}; save('account', account); paintAccount(); toast('Logged out of Google'); showSplash();
 };
 
 // ---- clear all data ----
@@ -513,9 +553,109 @@ $('#cfYes').onclick = async () => {
   $('#cfYes').disabled = true; $('#cfYes').textContent = 'Clearing…';
   await window.api.signOut();          // forget the Google session too
   window.api.writeStore({});           // the shared task file too
+  const keep = localStorage.getItem('backup');   // backup settings survive a clear
   localStorage.clear();                // tasks, profile, photo, schedule, logs — everything
+  if (keep) localStorage.setItem('backup', keep);
   location.reload();                   // back to the first-launch splash
 };
+
+// custom colour picker (saturation/brightness square + hue bar + hex)
+const hsv2hex = (h, s, v) => { const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); }; return '#' + [f(5), f(3), f(1)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+const hex2hsv = hex => { const [r, g, b] = hexRgb(hex).map(x => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return { h: h * 60, s: mx ? d / mx : 0, v: mx }; };
+let cp = hex2hsv(customHex);
+function paintCp(skipHex) {
+  const hex = hsv2hex(cp.h, cp.s, cp.v);
+  $('#cpSv').style.background = `linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,hsl(${cp.h},100%,50%))`;
+  $('#cpSvH').style.left = cp.s * 100 + '%'; $('#cpSvH').style.top = (1 - cp.v) * 100 + '%'; $('#cpSvH').style.background = hex;
+  $('#cpHueH').style.left = cp.h / 360 * 100 + '%'; $('#cpHueH').style.background = `hsl(${cp.h},100%,50%)`;
+  $('#cpPrev').style.background = hex; if (!skipHex) $('#cpHex').value = hex.toUpperCase();
+  return hex;
+}
+function cpApply(skipHex) {
+  customHex = paintCp(skipHex); applyTheme('custom', true);
+  const sw = document.querySelector('.sw.custom'); if (sw) { sw.style.setProperty('--c', customHex); document.querySelectorAll('.sw.on').forEach(x => x.classList.remove('on')); sw.classList.add('on'); }
+  if (view === 'ana') renderAna(); if (view === 'dash') renderDash();
+}
+function dragArea(el, fn) {
+  el.onpointerdown = e => { el.setPointerCapture(e.pointerId); const mv = ev => { const r = el.getBoundingClientRect(); fn(Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height))); }; mv(e); el.onpointermove = mv; el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; }; };
+}
+dragArea($('#cpSv'), (x, y) => { cp.s = x; cp.v = 1 - y; cpApply(); });
+dragArea($('#cpHue'), x => { cp.h = x * 359.99; cpApply(); });
+$('#cpHex').oninput = () => { let v = $('#cpHex').value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { cp = hex2hsv(v.toLowerCase()); cpApply(true); } };
+$('#cpHex').onblur = () => paintCp();
+document.addEventListener('mousedown', e => { const p = $('#cp'); if (!p.hidden && !p.contains(e.target) && !e.target.closest('.sw.custom')) p.hidden = true; });
+function paintThemes() {
+  const sw = t => `<button class="sw ${t.id === themeId ? 'on' : ''}" data-id="${t.id}" style="--c:${t.hex}"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>${t.name}</span></button>`;
+  $('#themeGrid').innerHTML = THEMES.map(sw).join('')
+    + `<button class="sw custom ${themeId === 'custom' ? 'on' : ''}" data-id="custom" style="--c:${customHex}"><span class="dot"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Custom</span></button>`;
+  $('#themeGrid').querySelectorAll('button.sw').forEach(b => b.onclick = () => {
+    const refresh = () => { if (view === 'ana') renderAna(); if (view === 'dash') renderDash(); };
+    if (b.dataset.id === 'custom') { $('#cp').hidden = !$('#cp').hidden; cp = hex2hsv(customHex); paintCp(); applyTheme('custom', true); paintThemes(); refresh(); return; }
+    $('#cp').hidden = true; applyTheme(b.dataset.id, true); paintThemes(); refresh();
+  });
+}
+paintThemes();
+
+// ---------- backup & restore ----------
+let bk = load('backup', { on: false, dir: '', times: [], last: 0, ran: '' });
+const saveBk = () => save('backup', bk);
+const bkData = () => ({ app: 'Stride', version: 1, savedAt: Date.now(), entries, profile, auto, cfg, theme: themeId, themeCustom: customHex });
+async function runBackup() {
+  if (!bk.on || !bk.dir) return;
+  const r = await window.api.backupWrite(bk.dir, bkData());
+  if (r.ok) { bk.last = Date.now(); saveBk(); } else toast('Backup failed: ' + r.error);
+  paintBackup();
+}
+function paintBackup() {
+  $('#bkOn').checked = bk.on;
+  document.querySelectorAll('.bk-opt').forEach(r => r.hidden = !bk.on);
+  $('#bkName').textContent = bk.dir ? bk.dir.split('/').filter(Boolean).pop() : 'Choose a folder';
+  $('#bkPath').textContent = bk.dir; $('#bkPath').hidden = !bk.dir;
+  const t12 = t => { const [H, M] = t.split(':').map(Number); return fmt12(H, M); };
+  const sorted = bk.times.map((t, i) => [t, i]).sort((x, y) => x[0].localeCompare(y[0]));
+  $('#bkTimes').innerHTML = sorted.map(([t, i]) => `<span class="bk-t">${t12(t)}<button data-x="${i}" title="Remove">×</button></span>`).join('')
+    + (bk.times.length < 6 ? '<button class="bk-add" id="bkAdd" title="Add a time">+</button>' : '');
+  $('#bkTimes').querySelectorAll('[data-x]').forEach(b => b.onclick = () => { bk.times.splice(Number(b.dataset.x), 1); saveBk(); paintBackup(); });
+  if ($('#bkAdd')) $('#bkAdd').onclick = openBkPicker;
+}
+const bpH = stepper($('#bpH'), { label: 'hour', min: 1, max: 12, wrap: true, value: 9 });
+const bpM = stepper($('#bpM'), { label: 'minute', max: 59, step: 5, wrap: true, value: 0 });
+let bpApm = 'AM';
+const paintBp = () => $('#bpP').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.p === bpApm));
+$('#bpP').querySelectorAll('button').forEach(b => b.onclick = () => { bpApm = b.dataset.p; paintBp(); });
+function openBkPicker() {
+  const pop = $('#bkPicker'); if (!pop.hidden) { pop.hidden = true; return; }
+  bpH.set(9, true); bpM.set(0, true); bpApm = 'AM'; paintBp();
+  const add = $('#bkAdd'); pop.style.left = add.offsetLeft + 'px'; pop.style.top = (add.offsetTop + add.offsetHeight + 8) + 'px'; pop.hidden = false;
+}
+document.addEventListener('mousedown', e => { const p = $('#bkPicker'); if (!p.hidden && !p.contains(e.target) && !e.target.closest('#bkAdd')) p.hidden = true; });
+$('#bpYes').onclick = () => {
+  const t = `${pad(to24(bpH.get(), bpApm))}:${pad(bpM.get())}`;
+  if (bk.times.includes(t)) { toast('That time is already added'); return; }
+  bk.times.push(t); saveBk(); $('#bkPicker').hidden = true; paintBackup();
+};
+$('#bkOn').onchange = () => { bk.on = $('#bkOn').checked; saveBk(); paintBackup(); if (bk.on && bk.dir) runBackup(); };
+$('#bkPick').onclick = async () => { let d = ''; try { d = await window.api.backupPick(); } catch (e) { toast('Restart Stride (⌘Q) to enable the folder picker'); return; } if (!d) return; bk.dir = d; saveBk(); paintBackup(); runBackup(); };
+$('#bkRestore').onclick = async () => {
+  let r; try { r = await window.api.backupPickFile(); } catch { toast('Restart Stride (⌘Q) to enable restore'); return; }
+  if (r.canceled) return;
+  if (!r.ok || !r.data || typeof r.data !== 'object' || !(r.data.entries || r.data.profile)) { toast(r.error || 'That file is not a Stride backup.'); return; }
+  if (!confirm('Restore from this file? Your current tasks, profile and schedule will be replaced.')) return;
+  const d = r.data;
+  if (d.entries) { entries = d.entries; persist(); }
+  if (d.profile) save('profile', d.profile);
+  if (d.auto) save('auto', d.auto);
+  if (d.cfg) save('cfg', d.cfg);
+  if (d.theme) save('theme', d.theme);
+  if (d.themeCustom) save('themeCustom', d.themeCustom);
+  location.reload();
+};
+setInterval(() => {
+  if (!bk.on || !bk.dir) return;
+  const n = new Date(), hm = `${pad(n.getHours())}:${pad(n.getMinutes())}`, id = `${key(n)} ${hm}`;
+  if (bk.times.includes(hm) && bk.ran !== id) { bk.ran = id; saveBk(); runBackup(); }
+}, 15000);
+paintBackup();
 
 // ---------- splash: Google sign-in ----------
 function splashState(s) { $('#spIntro').hidden = s !== 'intro'; $('#spLogin').hidden = s !== 'login'; $('#spDone').hidden = s !== 'done'; }
@@ -530,6 +670,7 @@ $('#gBtn').onclick = async () => {
   if (!$('#spLogin').hidden && r.ok) {
     window.api.hide(); splashState('done');
     signedIn = true; save('signedIn', true);
+    account = { email: r.email || account.email || '', at: Date.now() }; save('account', account); paintAccount();
     setTimeout(() => { $('#splash').hidden = true; go(profile.formName ? 'dash' : 'prof'); if (!profile.formName) toast('Welcome! Add your name to finish setting up'); }, 1400);
   } else if (!r.ok && !$('#spLogin').hidden) $('#spNote').textContent = 'Could not reach Google. Check your connection and try again.';
 };
@@ -545,4 +686,5 @@ window.api.onStore(d => {
 // ---------- init ----------
 window.api.writeStore(entries);
 paintHeader(); paintAuto(); setDur(0, true);
+paintAccount();
 if (signedIn) go(profile.formName ? 'dash' : 'prof'); else { go('dash'); showSplash(); }

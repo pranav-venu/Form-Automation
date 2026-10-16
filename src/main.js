@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, powerSaveBlocker, session } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, powerSaveBlocker, session, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -17,7 +17,7 @@ let win, formView, quitting = false, wantRect = null, runId = 0;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 860, minWidth: 1040, minHeight: 700,
+    width: 1280, height: 800, useContentSize: true, resizable: false, maximizable: false, fullscreenable: false,
     titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 18, y: 18 },
     backgroundColor: '#06080b',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, backgroundThrottling: false }
@@ -57,6 +57,7 @@ ipcMain.handle('form:signout', async () => {
 // Splash sign-in: show Google's login in the embedded view until the user reaches the form.
 let authId = 0;
 const isFormHost = url => { try { const u = new URL(url); return u.hostname === 'docs.google.com' && u.pathname.includes('/forms'); } catch { return false; } };
+const findEmail = async wc => { try { return await wc.executeJavaScript(`(document.body.innerText.match(/[\\w.+-]+@[\\w-]+\\.[\\w.-]+/) || [''])[0]`) || ''; } catch { return ''; } };
 ipcMain.handle('auth:start', async () => {
   const my = ++authId, wc = formView.webContents;
   const settled = async () => { // wait until the page (and any redirects) have finished loading
@@ -70,11 +71,11 @@ ipcMain.handle('auth:start', async () => {
     await wc.loadURL(FORM_URL).catch(() => {});
     await settled();
     if (my !== authId) return { ok: false };
-    if (isFormHost(wc.getURL()) && !onLogin(wc)) return { ok: true };       // already signed in
+    if (isFormHost(wc.getURL()) && !onLogin(wc)) return { ok: true, email: await findEmail(wc) };       // already signed in
     authDone = false; applyBounds();                                         // show the Google login
     wc.on('did-start-navigation', early);
     for (let i = 0; i < 2400 && my === authId; i++) {
-      if (isFormHost(wc.getURL()) && !onLogin(wc)) { authDone = true; applyBounds(); return { ok: true }; }
+      if (isFormHost(wc.getURL()) && !onLogin(wc)) { authDone = true; applyBounds(); await settled(); return { ok: true, email: await findEmail(wc) }; }
       await sleep(250);
     }
     return { ok: false };
@@ -221,4 +222,39 @@ ipcMain.on('store:write', (_e, data) => {
 });
 app.whenReady().then(() => {
   fs.watchFile(STORE, { interval: 700 }, () => { const d = readStore(); if (d && win && !win.isDestroyed()) win.webContents.send('store:changed', d); });
+});
+
+// ---------- backup: one rolling file in a folder the user picks ----------
+const BACKUP_FILE = 'Stride-backup.json';
+ipcMain.handle('backup:pick', async () => {
+  try {
+    if (win && !win.isDestroyed()) { win.show(); win.focus(); }
+    const r = await dialog.showOpenDialog(win && !win.isDestroyed() ? win : undefined, { title: 'Choose backup folder', buttonLabel: 'Select folder', properties: ['openDirectory', 'createDirectory'] });
+    return r.canceled || !r.filePaths[0] ? '' : r.filePaths[0];
+  } catch (e) { return ''; }
+});
+ipcMain.handle('backup:write', (_e, dir, data) => {
+  try {
+    const f = path.join(dir, BACKUP_FILE), tmp = f + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data)); fs.renameSync(tmp, f);   // replaces the previous backup
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+ipcMain.handle('backup:read', (_e, dir) => {
+  try { return { ok: true, data: JSON.parse(fs.readFileSync(path.join(dir, BACKUP_FILE), 'utf8')) }; }
+  catch (e) { return { ok: false, error: e.code === 'ENOENT' ? 'No backup found in that folder.' : e.message }; }
+});
+ipcMain.handle('backup:pickFile', async () => {
+  try {
+    const r = await dialog.showOpenDialog(win && !win.isDestroyed() ? win : undefined, { title: 'Restore from backup', buttonLabel: 'Restore', properties: ['openFile'], filters: [{ name: 'Backup (JSON)', extensions: ['json'] }] });
+    if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+    const data = JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8'));
+    return { ok: true, data };
+  } catch (e) { return { ok: false, error: 'That file could not be read as a backup.' }; }
+});
+
+// accent colour shared with the IDE extension
+const THEME_FILE = path.join(os.homedir(), '.stride', 'theme.json');
+ipcMain.on('theme:write', (_e, t) => {
+  try { fs.mkdirSync(path.dirname(THEME_FILE), { recursive: true }); fs.writeFileSync(THEME_FILE + '.tmp', JSON.stringify(t)); fs.renameSync(THEME_FILE + '.tmp', THEME_FILE); } catch {}
 });

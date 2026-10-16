@@ -11,6 +11,7 @@ let signedIn = load('signedIn', false);
 let auto = load('auto', { on: false, h: 18, m: 0, lastRun: '' });
 let entries = window.api.readStore() || load('entries2', {});   // { 'YYYY-MM-DD': { tasks:[{id,text,mins}], sent, sentAt } }
 
+if (!Array.isArray(auto.days)) auto.days = [0, 1, 2, 3, 4, 5, 6];   // 0 = Sunday
 if (auto.time) { const [h, m] = auto.time.split(':').map(Number); auto = { ...auto, h, m }; delete auto.time; save('auto', auto); }
 
 // ---------- helpers ----------
@@ -27,16 +28,16 @@ const mondayOf = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getD
 function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); }
 
 // ---------- stepper (hour / minute selector) ----------
-function stepper(el, { label, max, step = 1, wrap = false, value = 0 }) {
+function stepper(el, { label, max, min = 0, step = 1, wrap = false, value = 0 }) {
   el.innerHTML = `<button class="sb" data-d="-1">−</button><input class="sv" inputmode="numeric" maxlength="2"><button class="sb" data-d="1">+</button><span class="sl">${label}</span>`;
   const inp = el.querySelector('.sv'); let v = value;
   const show = () => { inp.value = pad(v); };
-  const set = (n, silent) => { v = wrap ? ((n % (max + 1)) + (max + 1)) % (max + 1) : Math.min(max, Math.max(0, n)); show(); if (!silent) el.dispatchEvent(new Event('change')); };
+  const set = (n, silent) => { const size = max - min + 1; v = wrap ? ((((n - min) % size) + size) % size) + min : Math.min(max, Math.max(min, n)); show(); if (!silent) el.dispatchEvent(new Event('change')); };
   el.querySelectorAll('.sb').forEach(b => b.onclick = () => set(v + step * Number(b.dataset.d)));
   inp.onfocus = () => { inp.value = ''; };                       // click = clear, so typing starts fresh
   inp.oninput = () => {                                          // digits only, never above max
     const t = inp.value.replace(/\D/g, '').slice(0, 2);
-    v = t === '' ? 0 : Math.min(max, parseInt(t, 10)); inp.value = t === '' ? '' : String(v);
+    v = t === '' ? min : Math.min(max, Math.max(min, parseInt(t, 10))); inp.value = t === '' ? '' : String(v);
     el.dispatchEvent(new Event('change'));
   };
   inp.onblur = show;
@@ -46,7 +47,7 @@ function stepper(el, { label, max, step = 1, wrap = false, value = 0 }) {
 }
 const sH = stepper($('#stH'), { label: 'hours', max: 23 });
 const sM = stepper($('#stM'), { label: 'minutes', max: 59, step: 5 });
-const aH = stepper($('#atH'), { label: 'hour', max: 23, wrap: true, value: auto.h });
+const aH = stepper($('#atH'), { label: 'hour', min: 1, max: 12, wrap: true, value: auto.h % 12 || 12 });
 const aM = stepper($('#atM'), { label: 'minute', max: 59, step: 5, wrap: true, value: auto.m });
 
 // ---------- navigation / breadcrumbs ----------
@@ -79,18 +80,18 @@ let blobAt = null;
 function moveBlob() {
   const on = document.querySelector('.tool.on'), blob = $('#blob');
   if (!on) { blob.style.opacity = 0; blobAt = null; return; }
-  const to = on.offsetLeft, W = on.offsetWidth;
-  blob.style.opacity = 1;
-  if (blobAt === null) { blob.style.left = to + 'px'; blob.style.width = W + 'px'; }
-  else if (blobAt !== to) {
-    const from = blobAt, lo = Math.min(from, to), span = Math.abs(to - from) + W;
+  const to = on.offsetLeft, W = on.offsetWidth, rest = `translateX(${to}px)`;
+  blob.style.width = W + 'px'; blob.style.opacity = 1;
+  if (blobAt === null) blob.style.transform = rest;
+  else if (blobAt !== to) {   // stretch out of the old button, squash a little, then settle (transform only: no layout, no jitter)
+    const from = blobAt, lo = Math.min(from, to), k = (Math.abs(to - from) + W) / W;
     blob.getAnimations().forEach(a => a.cancel());
-    const a = blob.animate([
-      { left: from + 'px', width: W + 'px' },
-      { left: lo + 'px', width: span + 'px', offset: .5, easing: 'cubic-bezier(.3,.7,.3,1)' },
-      { left: to + 'px', width: W + 'px' }
-    ], { duration: 560, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
-    a.onfinish = () => { blob.style.left = to + 'px'; blob.style.width = W + 'px'; a.cancel(); };
+    blob.style.transform = rest;
+    blob.animate([
+      { transform: `translateX(${from}px) scale(1,1)`, offset: 0 },
+      { transform: `translateX(${lo}px) scale(${k},.86)`, offset: .45, easing: 'cubic-bezier(.3,0,.2,1)' },
+      { transform: `translateX(${to}px) scale(1,1)`, offset: 1 }
+    ], { duration: 720, easing: 'cubic-bezier(.5,0,.15,1)' });
   }
   blobAt = to;
 }
@@ -98,7 +99,7 @@ window.addEventListener('resize', () => { blobAt = null; moveBlob(); });
 $('#btnCal').onclick = () => go('dash'); $('#btnAna').onclick = () => go('ana');
 $('#btnAuto').onclick = () => go('auto'); $('#btnProf').onclick = () => go('prof'); $('#ava').onclick = () => go('prof');
 function openDay(k) { selected = k; renderedDay = null; resetForm(); go('day'); setTimeout(() => $('#tName').focus(), 50); }
-document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#confirm').hidden) $('#confirm').hidden = true; else if (!$('#crop').hidden) $('#crop').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#confirm').hidden) $('#confirm').hidden = true; else if (!$('#logoutConfirm').hidden) $('#logoutConfirm').hidden = true; else if (!$('#crop').hidden) $('#crop').hidden = true; });
 
 // ---------- header ----------
 function paintAvatar(el, name, image) {
@@ -287,16 +288,17 @@ function renderDay() {
   const list = tasksOf(selected), e = entries[selected], box = $('#tasks');
   const firstTop = new Map([...box.querySelectorAll('.task')].map(el => [el.dataset.id, el.getBoundingClientRect().top]));
   const animate = renderedDay === selected; renderedDay = selected;
-  box.innerHTML = list.map(t => `<div class="task" data-id="${t.id}"><span class="nm"></span><span class="tm">${fmtHM(t.mins)}</span>
+  const shown = list.slice().reverse();   // newest on top
+  box.innerHTML = shown.map(t => `<div class="task" data-id="${t.id}"><span class="nm"></span><span class="tm">${fmtHM(t.mins)}</span>
     ${e?.sent ? '' : '<button class="ib ed" title="Edit">✎</button><button class="ib del" title="Delete">✕</button>'}</div>`).join('');
   box.querySelectorAll('.task').forEach((el, i) => {
-    const t = list[i];
+    const t = shown[i];
     el.querySelector('.nm').textContent = t.text;
     if (animate) {
-      if (!firstTop.has(t.id)) el.classList.add('in');                    // new task slides in from the left
-      else {                                                              // the rest glide down to make room
+      if (!firstTop.has(t.id)) el.animate([{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 520, delay: 160, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });   // new task slides in from the left
+      else {                                                              // the rest glide down, leaving room at the top
         const dy = firstTop.get(t.id) - el.getBoundingClientRect().top;
-        if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
       }
     }
     if (e?.sent) return;
@@ -384,17 +386,31 @@ window.api.onSubmitted(k => { markSent(k); if (view === 'form') setBanner('✓ S
 window.api.onNeedView(() => { go('form'); setBanner('Sign in to your Google account to continue — it will resume automatically.'); });
 
 // ---------- automate ----------
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+let apm = auto.h >= 12 ? 'PM' : 'AM';
+const to24 = (h12, p) => (h12 % 12) + (p === 'PM' ? 12 : 0);
+const fmt12 = (h, m) => `${h % 12 || 12}:${pad(m)} ${h >= 12 ? 'PM' : 'AM'}`;
 function paintAuto() {
   $('#autoOn').checked = auto.on;
-  $('#autoStatus').textContent = auto.on ? `Today's tasks will be sent every day at ${pad(auto.h)}:${pad(auto.m)}.` + (auto.lastRun ? `  Last run: ${auto.lastRun}` : '') : 'Auto-send is off.';
+  $('#atP').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.p === apm));
+  $('#atDays').querySelectorAll('button').forEach(b => b.classList.toggle('on', auto.days.includes(Number(b.dataset.d))));
+  const when = auto.days.length === 7 ? 'every day' : `every ${auto.days.slice().sort().map(d => DAY_NAMES[d]).join(', ')}`;
+  const last = auto.lastRun ? `  Last run: ${auto.lastRun.replace(/(\d{2}):(\d{2})/, (_, H, M) => fmt12(+H, +M))}` : '';
+  $('#autoStatus').textContent = !auto.on ? 'Auto-send is off.' : !auto.days.length ? 'No days selected — nothing will be sent.' : `Tasks will be sent ${when} at ${fmt12(auto.h, auto.m)}.` + last;
 }
-const saveAuto = () => { auto.h = aH.get(); auto.m = aM.get(); save('auto', auto); paintAuto(); };
+$('#atDays').innerHTML = DAY_NAMES.map((n, i) => `<button data-d="${i}">${n}</button>`).join('');
+$('#atDays').querySelectorAll('button').forEach(b => b.onclick = () => {
+  const d = Number(b.dataset.d); auto.days = auto.days.includes(d) ? auto.days.filter(x => x !== d) : [...auto.days, d]; saveAuto();
+});
+$('#atP').querySelectorAll('button').forEach(b => b.onclick = () => { apm = b.dataset.p; saveAuto(); });
+const saveAuto = () => { auto.h = to24(aH.get(), apm); auto.m = aM.get(); save('auto', auto); paintAuto(); };
 $('#autoOn').onchange = e => { auto.on = e.target.checked; saveAuto(); };   // the schedule always sends in the background; it never changes the Submit setting
 $('#atH').addEventListener('change', saveAuto); $('#atM').addEventListener('change', saveAuto);
 
 let busy = false;
 async function tick() {
   if (!auto.on || busy || view === 'form') return;
+  if (!auto.days.includes(new Date().getDay())) return;   // today is a skipped day
   const now = new Date(), k = key(now), stamp = `${k} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   if (now.getHours() * 60 + now.getMinutes() < auto.h * 60 + auto.m) return;
   if (auto.lastRun.startsWith(k) || !tasksOf(k).length || entries[k]?.sent) return;
@@ -463,7 +479,15 @@ function saveProfile() {
 }
 ['#pDisplay', '#pForm'].forEach(id => $(id).addEventListener('input', saveProfile));
 $('#pAuto').addEventListener('change', saveProfile);
-$('#pLogout').onclick = async () => { await window.api.signOut(); signedIn = false; save('signedIn', false); toast('Logged out of Google'); showSplash(); };
+$('#pLogout').onclick = () => { $('#logoutConfirm').hidden = false; };
+$('#loNo').onclick = () => { $('#logoutConfirm').hidden = true; };
+$('#logoutConfirm').onmousedown = e => { if (e.target === e.currentTarget) $('#logoutConfirm').hidden = true; };
+$('#loYes').onclick = async () => {
+  $('#loYes').disabled = true; $('#loYes').textContent = 'Logging out…';
+  await window.api.signOut(); signedIn = false; save('signedIn', false);
+  $('#logoutConfirm').hidden = true; $('#loYes').disabled = false; $('#loYes').textContent = 'Log out';
+  toast('Logged out of Google'); showSplash();
+};
 
 // ---- clear all data ----
 $('#pClear').onclick = () => { $('#confirm').hidden = false; };

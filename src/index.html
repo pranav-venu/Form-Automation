@@ -48,10 +48,10 @@
       </div>
     </div>
     <div class="kpis">
-      <div class="card kpi k1"><span class="bar"></span><div class="lbl">Total time</div><div class="val" id="kTotal">0h</div><div class="ksub" id="kTotalS"></div></div>
-      <div class="card kpi k2"><span class="bar"></span><div class="lbl">Daily average</div><div class="val" id="kAvg">0h</div><div class="ksub" id="kAvgS"></div></div>
-      <div class="card kpi k3"><span class="bar"></span><div class="lbl">Best day</div><div class="val" id="kBest">0h</div><div class="ksub" id="kBestS"></div></div>
-      <div class="card kpi k4"><span class="bar"></span><div class="lbl">Tasks logged</div><div class="val" id="kTasks">0</div><div class="ksub" id="kTasksS"></div></div>
+      <div class="card kpi k1"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2.5h6"/></svg></div><div class="lbl">Total time</div><div class="val" id="kTotal">0h</div><div class="ksub" id="kTotalS"></div></div>
+      <div class="card kpi k2"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></div><div class="lbl">Daily average</div><div class="val" id="kAvg">0h</div><div class="ksub" id="kAvgS"></div></div>
+      <div class="card kpi k3"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H4.5A3 3 0 0 0 8 10M16 6h3.5A3 3 0 0 1 16 10M12 13v4M8.5 21h7M10 17h4"/></svg></div><div class="lbl">Best day</div><div class="val" id="kBest">0h</div><div class="ksub" id="kBestS"></div></div>
+      <div class="card kpi k4"><span class="bar"></span><div class="kic"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg></div><div class="lbl">Tasks logged</div><div class="val" id="kTasks">0</div><div class="ksub" id="kTasksS"></div></div>
     </div>
     </div>
 
@@ -118,7 +118,9 @@
         <label class="switch"><input type="checkbox" id="autoOn"><span></span></label>
       </div>
       <div class="lbl sp">Send at</div>
-      <div class="dur"><div class="step" id="atH"></div><span class="colon">:</span><div class="step" id="atM"></div></div>
+      <div class="dur"><div class="step" id="atH"></div><span class="colon">:</span><div class="step" id="atM"></div><div class="ampm" id="atP"><button data-p="AM">AM</button><button data-p="PM">PM</button></div></div>
+      <div class="lbl sp">Send on</div>
+      <div class="days" id="atDays"></div>
       <p class="note" id="autoStatus"></p>
       <p class="mute-s">The app needs to be running. Closing the window keeps it running in the background — quit with ⌘Q to stop it.</p>
     </div>
@@ -138,7 +140,7 @@
         <div><div class="lbl">Submit automatically on Send</div></div>
         <label class="switch"><input type="checkbox" id="pAuto"><span></span></label>
       </div>
-      <div class="out-row"><button class="gbtn out" id="pLogout"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.1-3.8 6.5-9.4 6.5-16.2z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.2 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.7-.7-4.3s.3-2.9.7-4.3v-5.7H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.900 4.300 29.900 2 24 2 15.500 2 8.100 6.800 4.500 14l7.300 5.700c1.700-5.200 6.500-8.900 12.200-8.900z"/></svg><span>Sign out of Google</span></button></div>
+      <div class="out-row"><button class="logout" id="pLogout"><span class="g"><svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.1-3.8 6.5-9.4 6.5-16.2z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.2 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.7-.7-4.3s.3-2.9.7-4.3v-5.7H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.8c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.900 4.300 29.900 2 24 2 15.500 2 8.100 6.800 4.500 14l7.300 5.700c1.700-5.200 6.500-8.900 12.200-8.900z"/></svg></span><span class="t">Log out of Google</span><svg class="ex" viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></svg></button></div>
       <button class="clear-link" id="pClear">Clear all data</button>
     </div>
   </section>
@@ -151,6 +153,16 @@
     <h3>Clear all data?</h3>
     <p class="mute-s" style="margin-bottom:20px">This permanently deletes every task, your profile and photo, the auto-send schedule and its logs, and signs you out of Google. You'll start again from the beginning. This can't be undone.</p>
     <div class="half-btns" style="margin-top:0"><button class="pill" id="cfNo">Cancel</button><button class="btn sm danger-btn" id="cfYes">Clear everything</button></div>
+  </div>
+</div>
+
+<!-- CONFIRM LOGOUT -->
+<div class="modal" id="logoutConfirm" hidden>
+  <div class="crop-card">
+    <div class="warn lo"><svg viewBox="0 0 24 24"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/></svg></div>
+    <h3>Log out of Google?</h3>
+    <p class="mute-s" style="margin-bottom:20px">You'll need to sign in again before tasks can be sent to the form. Your tasks and profile stay saved.</p>
+    <div class="half-btns" style="margin-top:0"><button class="pill" id="loNo">Cancel</button><button class="btn sm danger-btn" id="loYes">Log out</button></div>
   </div>
 </div>
 

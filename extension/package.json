@@ -1,0 +1,23 @@
+{
+  "name": "stride-tasks",
+  "displayName": "Stride Tasks",
+  "description": "Log today's tasks from your IDE straight into the Stride app.",
+  "version": "1.2.1",
+  "icon": "media/logo.png",
+  "publisher": "pranav",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "viewsContainers": { "activitybar": [{ "id": "stride", "title": "Stride", "icon": "media/icon.svg" }] },
+    "views": { "stride": [{ "type": "webview", "id": "stride.tasks", "name": "Today" }] },
+    "commands": [
+      { "command": "stride.addTask", "title": "Stride: Add Task" },
+      { "command": "stride.addFromCommit", "title": "Stride: Add Task from Last Commit" },
+      { "command": "stride.focus", "title": "Stride: Open Task Panel" }
+    ],
+    "configuration": { "title": "Stride", "properties": { "stride.commitPrompt": { "type": "string", "enum": ["ask", "off"], "default": "ask", "description": "After you commit from Source Control, offer to log the commit as a Stride task." } } },
+    "keybindings": [{ "command": "stride.addTask", "key": "ctrl+alt+t", "mac": "cmd+alt+t" }]
+  }
+}

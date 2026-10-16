@@ -7,5 +7,8 @@ contextBridge.exposeInMainWorld('api', {
   authCancel: () => ipcRenderer.send('auth:cancel'),
   signOut: () => ipcRenderer.invoke('form:signout'),
   onSubmitted: cb => ipcRenderer.on('form:submitted', (_e, k) => cb(k)),
+  readStore: () => ipcRenderer.sendSync('store:read'),
+  writeStore: d => ipcRenderer.send('store:write', d),
+  onStore: cb => ipcRenderer.on('store:changed', (_e, d) => cb(d)),
   onNeedView: cb => ipcRenderer.on('form:need-view', () => cb())
 });

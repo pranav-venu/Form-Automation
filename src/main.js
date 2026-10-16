@@ -1,5 +1,7 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, powerSaveBlocker, session } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const UA = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSerqjhDUA-UjpnmSiECz69hsH-enTDEq6UnpPM1gUbE116d7w/viewform';
@@ -169,4 +171,15 @@ ipcMain.handle('form:run', async (_e, p) => {
     })();
     return { ok: true, filled: true };
   } catch (e) { return { ok: false, error: e.message }; }
+});
+
+// ---------- shared task file (also written by the IDE extension) ----------
+const STORE = path.join(os.homedir(), '.stride', 'entries.json');
+const readStore = () => { try { return JSON.parse(fs.readFileSync(STORE, 'utf8')); } catch { return null; } };
+ipcMain.on('store:read', e => { e.returnValue = readStore(); });
+ipcMain.on('store:write', (_e, data) => {
+  try { fs.mkdirSync(path.dirname(STORE), { recursive: true }); fs.writeFileSync(STORE + '.tmp', JSON.stringify(data)); fs.renameSync(STORE + '.tmp', STORE); } catch {}
+});
+app.whenReady().then(() => {
+  fs.watchFile(STORE, { interval: 700 }, () => { const d = readStore(); if (d && win && !win.isDestroyed()) win.webContents.send('store:changed', d); });
 });

@@ -9,7 +9,7 @@ let profile = load('profile', {});
 profile = { displayName: profile.displayName ?? profile.name ?? '', formName: profile.formName ?? profile.name ?? '', image: profile.image || '' };
 let signedIn = load('signedIn', false);
 let auto = load('auto', { on: false, h: 18, m: 0, lastRun: '' });
-let entries = load('entries2', {});   // { 'YYYY-MM-DD': { tasks:[{id,text,mins}], sent, sentAt } }
+let entries = window.api.readStore() || load('entries2', {});   // { 'YYYY-MM-DD': { tasks:[{id,text,mins}], sent, sentAt } }
 
 if (auto.time) { const [h, m] = auto.time.split(':').map(Number); auto = { ...auto, h, m }; delete auto.time; save('auto', auto); }
 
@@ -22,7 +22,7 @@ const minsOf = k => tasksOf(k).reduce((s, t) => s + t.mins, 0);
 const fmt = m => { const h = Math.floor(m / 60), r = Math.round(m % 60); return !m ? '0h' : !h ? `${r}m` : !r ? `${h}h` : `${h}h ${r}m`; };
 const durText = m => { const h = Math.floor(m / 60), r = m % 60; const a = []; if (h) a.push(`${h} ${h === 1 ? 'Hour' : 'Hours'}`); if (r) a.push(`${r} Mins`); return a.join(' '); };
 const formLines = k => tasksOf(k).map(t => `${t.text.trim().replace(/[,.]+$/, '').replace(/,/g, ' ')} - ${durText(t.mins)}`);
-const persist = () => save('entries2', entries);
+const persist = () => { save('entries2', entries); window.api.writeStore(entries); };
 const mondayOf = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
 function toast(t) { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); }
 
@@ -61,20 +61,43 @@ function go(v) {
   $('#btnCal').classList.toggle('on', inCal); $('#btnAna').classList.toggle('on', v === 'ana');
   $('#btnAuto').classList.toggle('on', v === 'auto'); $('#btnProf').classList.toggle('on', v === 'prof');
   const dl = fromKey(selected).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-  const trail = { day: [[dl]], form: [[dl, 'day'], ['Submit']] }[v] || [];
-  const parts = trail.length ? [['Calendar', 'dash'], ...trail] : [];
+  const NAMES = { dash: 'Calendar', ana: 'Analytics', auto: 'Automate', prof: 'Profile' };
+  const parts = { day: [['Calendar', 'dash'], [dl]], form: [['Calendar', 'dash'], [dl, 'day'], ['Submit']] }[v] || [[NAMES[v]]];
   $('#crumbs').innerHTML = parts.map((p, i) => i === parts.length - 1 ? `<b>${p[0]}</b>` : `<a data-go="${p[1]}">${p[0]}</a>`).join('<span>›</span>');
   $('#crumbs').querySelectorAll('a').forEach(a => a.onclick = () => go(a.dataset.go));
+  if (v !== 'day') $('#sendBtn').hidden = true;
   if (v === 'dash') renderDash();
   if (v === 'day') renderDay();
   if (v === 'ana') renderAna();
   if (v === 'prof') paintProfile();
-  if (v === 'form') requestAnimationFrame(sendBounds);
+  if (v === 'form') requestAnimationFrame(() => requestAnimationFrame(sendBounds));
+  try { moveBlob(); } catch {}
   document.querySelector('.shell').scrollTop = 0;
 }
+// liquid highlight: stretches out of the old button and settles into the new one
+let blobAt = null;
+function moveBlob() {
+  const on = document.querySelector('.tool.on'), blob = $('#blob');
+  if (!on) { blob.style.opacity = 0; blobAt = null; return; }
+  const to = on.offsetLeft, W = on.offsetWidth;
+  blob.style.opacity = 1;
+  if (blobAt === null) { blob.style.left = to + 'px'; blob.style.width = W + 'px'; }
+  else if (blobAt !== to) {
+    const from = blobAt, lo = Math.min(from, to), span = Math.abs(to - from) + W;
+    blob.getAnimations().forEach(a => a.cancel());
+    const a = blob.animate([
+      { left: from + 'px', width: W + 'px' },
+      { left: lo + 'px', width: span + 'px', offset: .5, easing: 'cubic-bezier(.3,.7,.3,1)' },
+      { left: to + 'px', width: W + 'px' }
+    ], { duration: 560, easing: 'cubic-bezier(.45,0,.2,1)', fill: 'forwards' });
+    a.onfinish = () => { blob.style.left = to + 'px'; blob.style.width = W + 'px'; a.cancel(); };
+  }
+  blobAt = to;
+}
+window.addEventListener('resize', () => { blobAt = null; moveBlob(); });
 $('#btnCal').onclick = () => go('dash'); $('#btnAna').onclick = () => go('ana');
 $('#btnAuto').onclick = () => go('auto'); $('#btnProf').onclick = () => go('prof'); $('#ava').onclick = () => go('prof');
-function openDay(k) { selected = k; resetForm(); go('day'); setTimeout(() => $('#tName').focus(), 50); }
+function openDay(k) { selected = k; renderedDay = null; resetForm(); go('day'); setTimeout(() => $('#tName').focus(), 50); }
 document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#confirm').hidden) $('#confirm').hidden = true; else if (!$('#crop').hidden) $('#crop').hidden = true; });
 
 // ---------- header ----------
@@ -170,8 +193,9 @@ function renderCal() {
   for (let d = 1; d <= count; d++) {
     const k = key(new Date(calView.getFullYear(), calView.getMonth(), d)), has = tasksOf(k).length;
     const c = document.createElement('div'), sent = !!entries[k]?.sent;
+    c.style.setProperty('--i', first + d - 1);
     c.className = 'cell' + (k === tk ? ' today' : '') + (entries[k]?.sent ? ' sent' : has ? ' draft' : '');
-    c.innerHTML = `<div class="top"><span class="n">${d}</span>${has ? `<button class="cell-send${sent ? ' again' : ''}" title="${sent ? 'Send again' : 'Send to form'}"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>` : ''}</div><span class="h">${has ? fmt(minsOf(k)) + (entries[k].sent ? ' · sent' : '') : ''}</span>`;
+    c.innerHTML = `<div class="top"><span class="n">${d}</span>${has && !sent ? `<button class="cell-send" title="Send to form"><svg viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>` : ''}</div><span class="h">${has ? fmt(minsOf(k)) + (entries[k].sent ? ' · sent' : '') : ''}</span>`;
     c.onclick = () => openDay(k);
     const sb = c.querySelector('.cell-send');
     if (sb) sb.onclick = e => { e.stopPropagation(); selected = k; sendNow(); };
@@ -257,22 +281,36 @@ $('#quick').querySelectorAll('button').forEach(b => b.onclick = () => {   // chi
 ['#stH', '#stM'].forEach(id => $(id).addEventListener('change', () => { picked.clear(); paintChips(); })); // typing / stepping overrides chips
 const fmtHM = m => `${Math.floor(m / 60)}h ${pad(m % 60)}m`;
 
+let renderedDay = null;
 function renderDay() {
   $('#dayTitle').textContent = fromKey(selected).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
-  const list = tasksOf(selected), e = entries[selected];
-  $('#tasks').innerHTML = list.map(t => `<div class="task" data-id="${t.id}"><span class="nm"></span><span class="tm">${fmtHM(t.mins)}</span>
-    <button class="ib ed" title="Edit">✎</button><button class="ib del" title="Delete">✕</button></div>`).join('');
-  $('#tasks').querySelectorAll('.task').forEach((el, i) => {
-    el.querySelector('.nm').textContent = list[i].text;
-    el.querySelector('.ed').onclick = () => startEdit(list[i]);
-    el.querySelector('.del').onclick = () => { entries[selected].tasks = list.filter(x => x.id !== list[i].id); entries[selected].sent = false; persist(); if (editing === list[i].id) resetForm(); renderDay(); };
+  const list = tasksOf(selected), e = entries[selected], box = $('#tasks');
+  const firstTop = new Map([...box.querySelectorAll('.task')].map(el => [el.dataset.id, el.getBoundingClientRect().top]));
+  const animate = renderedDay === selected; renderedDay = selected;
+  box.innerHTML = list.map(t => `<div class="task" data-id="${t.id}"><span class="nm"></span><span class="tm">${fmtHM(t.mins)}</span>
+    ${e?.sent ? '' : '<button class="ib ed" title="Edit">✎</button><button class="ib del" title="Delete">✕</button>'}</div>`).join('');
+  box.querySelectorAll('.task').forEach((el, i) => {
+    const t = list[i];
+    el.querySelector('.nm').textContent = t.text;
+    if (animate) {
+      if (!firstTop.has(t.id)) el.classList.add('in');                    // new task slides in from the left
+      else {                                                              // the rest glide down to make room
+        const dy = firstTop.get(t.id) - el.getBoundingClientRect().top;
+        if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+    }
+    if (e?.sent) return;
+    el.querySelector('.ed').onclick = () => startEdit(t);
+    el.querySelector('.del').onclick = () => { entries[selected].tasks = list.filter(x => x.id !== t.id); entries[selected].sent = false; persist(); if (editing === t.id) resetForm(); renderDay(); };
   });
   $('#empty').hidden = !!list.length;
   $('#dayTotal').textContent = fmtHM(minsOf(selected));
   const b = $('#dayBadge');
   b.hidden = !e?.sent;
   if (e?.sent) b.textContent = `Sent ${new Date(e.sentAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
-  $('#sendBtn').textContent = e?.sent ? 'Submit again' : 'Submit'; $('#sendBtn').disabled = !list.length;
+  const done = !!e?.sent;
+  $('#addCard').hidden = done; $('.day-grid').classList.toggle('solo', done);
+  $('#sendBtn').hidden = view !== 'day' || done || !list.length;
   if (view === 'dash') renderCal();
 }
 function resetForm() { editing = null; picked.clear(); paintChips(); $('#tName').value = ''; setDur(0, true); $('#tAdd').title = 'Add task'; $('#tCancel').classList.add('hide'); $('#formLbl').textContent = 'New task'; $('#tMsg').textContent = ''; }
@@ -307,15 +345,33 @@ function showSending(state, title, msg = '') {
 }
 $('#sdOk').onclick = () => { $('#sending').hidden = true; };
 
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function fabState(s) {   // '' | 'busy' | 'ok'
+  const f = $('#sendBtn');
+  f.classList.toggle('busy', s === 'busy'); f.classList.toggle('ok', s === 'ok');
+  f.disabled = !!s; f.querySelector('.txt').textContent = s === 'busy' ? 'Sending' : s === 'ok' ? 'Sent' : '';
+}
+async function finishDay() {   // "Sent" for a second, then the add-task side melts away and the list takes the width
+  fabState('ok'); await wait(1000);
+  $('.day-grid').classList.add('leaving'); $('#sendBtn').classList.add('gone');
+  await wait(700);
+  $('.day-grid').classList.remove('leaving'); $('#sendBtn').classList.remove('gone'); fabState('');
+  renderDay();
+}
+
 async function sendNow() {
   if (!profile.formName.trim()) { toast('Add your name-in-form in Profile first'); go('prof'); return; }
   const k = selected;
   if (cfg.autoSubmit) { // runs in the background; the form is never shown
-    showSending('busy', 'Submitting…', 'Sending your tasks to the form');
+    const inDay = view === 'day';
+    if (inDay) fabState('busy'); else showSending('busy', 'Submitting…', 'Sending your tasks to the form');
     const r = await window.api.run(payload(k, true));
     if (view === 'form') go('day');
-    if (!r.ok) return showSending('err', 'Could not submit', r.error);
-    markSent(k); renderDay(); showSending('ok', 'Submitted successfully', 'Your tasks have been sent.');
+    if (!r.ok) { if (inDay) fabState(''); return showSending('err', 'Could not submit', r.error); }
+    markSent(k);
+    if (inDay && view === 'day' && selected === k) return finishDay();
+    if (inDay) fabState('');
+    renderDay(); showSending('ok', 'Submitted successfully', 'Your tasks have been sent.');
     return;
   }
   go('form'); setBanner('Filling the form…');
@@ -333,7 +389,7 @@ function paintAuto() {
   $('#autoStatus').textContent = auto.on ? `Today's tasks will be sent every day at ${pad(auto.h)}:${pad(auto.m)}.` + (auto.lastRun ? `  Last run: ${auto.lastRun}` : '') : 'Auto-send is off.';
 }
 const saveAuto = () => { auto.h = aH.get(); auto.m = aM.get(); save('auto', auto); paintAuto(); };
-$('#autoOn').onchange = e => { auto.on = e.target.checked; if (auto.on && !cfg.autoSubmit) { cfg.autoSubmit = true; save('cfg', cfg); } saveAuto(); };
+$('#autoOn').onchange = e => { auto.on = e.target.checked; saveAuto(); };   // the schedule always sends in the background; it never changes the Submit setting
 $('#atH').addEventListener('change', saveAuto); $('#atM').addEventListener('change', saveAuto);
 
 let busy = false;
@@ -360,7 +416,7 @@ function paintPic() {
 }
 function paintProfile() {
   draftImage = profile.image;
-  $('#pDisplay').value = profile.displayName; $('#pForm').value = profile.formName; $('#pAuto').checked = cfg.autoSubmit || auto.on;
+  $('#pDisplay').value = profile.displayName; $('#pForm').value = profile.formName; $('#pAuto').checked = !!cfg.autoSubmit;
   paintPic();
 }
 
@@ -394,18 +450,19 @@ $('#cropCancel').onclick = () => { $('#crop').hidden = true; };
 $('#cropApply').onclick = () => {
   const sc = cr.base * cr.z, c = document.createElement('canvas'); c.width = c.height = 256;
   c.getContext('2d').drawImage(cImg, -cr.x / sc, -cr.y / sc, V / sc, V / sc, 0, 0, 256, 256);
-  draftImage = c.toDataURL('image/jpeg', .9); $('#crop').hidden = true; paintPic();
+  draftImage = c.toDataURL('image/jpeg', .9); $('#crop').hidden = true; paintPic(); saveProfile();
 };
 $('#picPick').onclick = () => $('#picFile').click();
 $('#picFile').onchange = e => { const f = e.target.files[0]; if (f) openCrop(f); e.target.value = ''; };
-$('#picDel').onclick = () => { draftImage = ''; paintPic(); };
-$('#pDisplay').oninput = () => { if (!draftImage) paintPic(); };
-$('#pSave').onclick = () => {
+$('#picDel').onclick = () => { draftImage = ''; paintPic(); saveProfile(); };
+$('#pDisplay').addEventListener('input', () => { if (!draftImage) paintPic(); });
+function saveProfile() {
   profile = { displayName: $('#pDisplay').value.trim(), formName: $('#pForm').value.trim(), image: draftImage };
   cfg = { autoSubmit: $('#pAuto').checked };
   save('profile', profile); save('cfg', cfg); paintHeader();
-  toast('Profile saved'); go('dash');
-};
+}
+['#pDisplay', '#pForm'].forEach(id => $(id).addEventListener('input', saveProfile));
+$('#pAuto').addEventListener('change', saveProfile);
 $('#pLogout').onclick = async () => { await window.api.signOut(); signedIn = false; save('signedIn', false); toast('Logged out of Google'); showSplash(); };
 
 // ---- clear all data ----
@@ -415,6 +472,7 @@ $('#confirm').onmousedown = e => { if (e.target === e.currentTarget) $('#confirm
 $('#cfYes').onclick = async () => {
   $('#cfYes').disabled = true; $('#cfYes').textContent = 'Clearing…';
   await window.api.signOut();          // forget the Google session too
+  window.api.writeStore({});           // the shared task file too
   localStorage.clear();                // tasks, profile, photo, schedule, logs — everything
   location.reload();                   // back to the first-launch splash
 };
@@ -437,6 +495,14 @@ $('#gBtn').onclick = async () => {
 };
 $('#spBack').onclick = () => { window.api.authCancel(); window.api.hide(); splashState('intro'); };
 
+// ---------- tasks added from the IDE extension ----------
+window.api.onStore(d => {
+  if (JSON.stringify(d) === JSON.stringify(entries)) return;
+  entries = d; save('entries2', entries);
+  if (view === 'dash') renderDash(); if (view === 'ana') renderAna(); if (view === 'day') renderDay();
+});
+
 // ---------- init ----------
+window.api.writeStore(entries);
 paintHeader(); paintAuto(); setDur(0, true);
 if (signedIn) go(profile.formName ? 'dash' : 'prof'); else { go('dash'); showSplash(); }
